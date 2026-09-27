@@ -13,6 +13,7 @@
 | Secrets | gnome-keyring (Secret Service) | GĐ1 |
 | Display manager | SDDM, greeter Wayland qua weston | GĐ1 (theme riêng ở GĐ5) |
 | Terminal | kitty | GĐ1 |
+| Bộ gõ | fcitx5 + Bamboo (tiếng Việt) | GĐ1 (theme Aero cho ô gợi ý ở GĐ5) |
 | Core daemon | glassd (Rust): settings, theme, agent NM/BlueZ | GĐ2 |
 | IPC | D-Bus cho API công khai, unix socket cho shell | GĐ2 |
 | Shell | Quickshell + QML | GĐ3–4 |
@@ -34,7 +35,10 @@ SDDM (greeter Wayland trên weston)
                  ├─ glass-wallpaper.service  hyprpaper --config ~/.config/glass/hyprpaper.conf
                  ├─ hyprpolkitagent.service
                  └─ xdg-desktop-autostart.target
+                     └─ fcitx5 (qua /etc/xdg/autostart của gói fcitx5)
 ```
+
+Bộ gõ: app GTK3/4 và Qt6 gõ qua giao thức text-input-v3 của Hyprland, nên Glass không đặt `GTK_IM_MODULE` (fcitx5 sẽ cảnh báo nếu có). `QT_IM_MODULE`, `XMODIFIERS`, `SDL_IM_MODULE` chỉ để dành cho app Qt5, app XWayland và game SDL2. Chromium/Electron cần cờ `--enable-wayland-ime --wayland-text-input-version=3`; Glass tạo sẵn `~/.config/chromium-flags.conf` và `~/.config/electron-flags.conf` nếu bạn chưa có.
 
 Khi Hyprland thoát (đăng xuất qua `hyprshutdown`), nó tắt `graphical-session.target`; `glass-session.target` gắn `BindsTo` vào đó nên các dịch vụ của Glass tắt theo.
 

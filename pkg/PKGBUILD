@@ -41,6 +41,8 @@ package_glass-session() {
         hyprland hyprlock hypridle hyprpaper hyprpolkitagent hyprshutdown
         # portal, keyring
         xdg-desktop-portal-hyprland xdg-desktop-portal-gtk gnome-keyring
+        # bộ gõ tiếng Việt
+        fcitx5 fcitx5-bamboo fcitx5-gtk fcitx5-qt fcitx5-configtool
         # app và tiện ích dùng trong phím tắt
         kitty qt6ct wireplumber brightnessctl playerctl
         grim slurp wl-clipboard xdg-user-dirs dbus

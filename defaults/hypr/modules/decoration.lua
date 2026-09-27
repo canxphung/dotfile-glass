@@ -63,6 +63,8 @@ hl.config({
             -- nhưng tốn GPU hơn. Máy yếu thì đặt true trong file của bạn.
             xray              = false,
             popups            = true,
+            -- Ô gợi ý của bộ gõ (fcitx5) cũng là kính.
+            input_methods     = true,
             special           = false,
         },
 

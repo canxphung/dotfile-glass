@@ -71,7 +71,8 @@ services)
     # với lệnh này. Import lại để chắc chắn dịch vụ thấy chúng.
     vars=
     for v in WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP \
-        GLASS_SESSION QT_QPA_PLATFORMTHEME XCURSOR_SIZE HYPRCURSOR_SIZE; do
+        GLASS_SESSION QT_QPA_PLATFORMTHEME XCURSOR_SIZE HYPRCURSOR_SIZE \
+        QT_IM_MODULES QT_IM_MODULE XMODIFIERS SDL_IM_MODULE; do
         eval "is_set=\${$v+x}"
         if [ -n "$is_set" ]; then
             vars="$vars $v"

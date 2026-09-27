@@ -10,6 +10,13 @@
 #   skel/glass/hyprland.lua  ->  ~/.config/glass/hyprland.lua
 #   skel/kitty/kitty.conf    ->  ~/.config/kitty/kitty.conf
 # Bản sao lưu nằm trong ~/.local/state/glass/backup/<thời gian>/.
+#
+# Có hai loại bản mẫu:
+#   phân lớp  nạp mặc định từ @GLASS_DATADIR@ (require/source/include) rồi
+#             mới tới phần của bạn. File đã có mà không nạp mặc định thì
+#             được báo là "không phải của Glass".
+#   khởi tạo  chỉ là giá trị ban đầu, app sẽ tự ghi lại (vd. profile của
+#             fcitx5). File đã có thì coi như của bạn, giữ im lặng.
 
 set -eu
 
@@ -46,8 +53,8 @@ done
 
 [ -d "$skel" ] || die "không thấy thư mục mẫu $skel (gói glass-session đã cài chưa?)"
 
-# File "của Glass" là file có nạp mặc định từ $datadir, kể cả khi bạn đã sửa.
-is_glass_file() {
+# File phân lớp là file có nạp mặc định từ $datadir, kể cả khi bạn đã sửa.
+loads_defaults() {
     grep -qF "$datadir/" "$1" 2>/dev/null
 }
 
@@ -89,7 +96,7 @@ for rel in $files; do
         install_template "$src" "$dst"
         replaced=$((replaced + 1))
         say "  ~ $dst (bản cũ: $backup_root/$rel)"
-    elif is_glass_file "$dst"; then
+    elif ! loads_defaults "$src" || loads_defaults "$dst"; then
         kept=$((kept + 1))
     else
         foreign=$((foreign + 1))

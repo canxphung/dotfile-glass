@@ -89,7 +89,20 @@ Nhớ trả lại giá trị cũ sau khi thử.
 - [ ] Chia sẻ màn hình trong trình duyệt (vd. thử trên webrtc.github.io) hiện được hộp chọn màn hình của Hyprland
 - [ ] Keyring tự mở khi đăng nhập: trình duyệt Chromium không hỏi mật khẩu keyring
 
-## 8. Đăng xuất
+## 8. Gõ tiếng Việt
+
+- [ ] `fcitx5` đang chạy (`pgrep -a fcitx5`), không có thông báo "Wayland Diagnose" của fcitx hiện lên
+- [ ] `CTRL + Space` bật tiếng Việt; gõ `tieengs vieetj` ra "tiếng việt", ô gợi ý hiện đúng chỗ con trỏ
+
+Thử ở từng loại app, vì mỗi loại đi một đường khác nhau:
+
+- [ ] kitty
+- [ ] App GTK (vd. Firefox, hoặc ô tìm trong hộp chọn file)
+- [ ] App Qt6 (vd. ô tìm kiếm trong `fcitx5-configtool`)
+- [ ] Chromium hoặc app Electron (VS Code, Discord...): cần cờ IME. Nếu bạn đã có `~/.config/chromium-flags.conf` từ trước thì Glass không đụng vào, phải tự thêm `--enable-wayland-ime` và `--wayland-text-input-version=3` (`glass-doctor` sẽ nhắc)
+- [ ] App XWayland (nếu có, vd. game hoặc app cũ): gõ qua XIM
+
+## 9. Đăng xuất
 
 - [ ] `SUPER + SHIFT + E`: hiện hộp "Đang đăng xuất...", app tự đóng, quay về SDDM
 - [ ] Đăng nhập lại vào Glass lần hai vẫn bình thường
@@ -119,5 +132,6 @@ glass-doctor
 hyprctl configerrors
 hyprctl rollinglog | tail -n 100
 journalctl --user -b -u glass-session.target -u glass-idle -u glass-wallpaper -u hyprpolkitagent
+journalctl --user -b -u 'app-org.fcitx.Fcitx5@autostart.service'
 journalctl -b -u sddm | tail -n 100
 ```

@@ -14,3 +14,11 @@ hl.env("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1")
 
 hl.env("GDK_BACKEND", "wayland,x11,*")
 hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
+
+-- Bộ gõ fcitx5 (tiếng Việt qua Bamboo).
+-- Không đặt GTK_IM_MODULE: GTK3/4 gõ qua giao thức text-input-v3 của
+-- Hyprland, và fcitx5 sẽ hiện cảnh báo nếu biến này được đặt.
+hl.env("QT_IM_MODULES", "wayland;fcitx;ibus") -- Qt6: ưu tiên text-input-v3
+hl.env("QT_IM_MODULE", "fcitx")               -- Qt5
+hl.env("XMODIFIERS", "@im=fcitx")             -- app XWayland
+hl.env("SDL_IM_MODULE", "fcitx")              -- game SDL2

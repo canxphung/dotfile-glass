@@ -136,6 +136,34 @@ else
     warn "greeter đang chạy $display_server, đặt bởi $display_server_from"
 fi
 
+section "Bộ gõ"
+if has fcitx5; then ok "fcitx5"; else fail "thiếu fcitx5"; fi
+if [ -e /usr/share/fcitx5/inputmethod/bamboo.conf ]; then
+    ok "Bamboo (tiếng Việt)"
+else
+    fail "thiếu fcitx5-bamboo"
+fi
+if [ -e /etc/xdg/autostart/org.fcitx.Fcitx5.desktop ]; then
+    ok "fcitx5 tự chạy khi vào phiên (XDG autostart)"
+else
+    warn "không thấy /etc/xdg/autostart/org.fcitx.Fcitx5.desktop: fcitx5 sẽ không tự chạy"
+fi
+if [ -e "$config_home/fcitx5/profile" ]; then
+    ok "$config_home/fcitx5/profile"
+else
+    warn "chưa có $config_home/fcitx5/profile (chạy glass-setup để có sẵn Bamboo)"
+fi
+for f in chromium-flags.conf electron-flags.conf; do
+    path=$config_home/$f
+    if [ -e "$path" ] && ! grep -q -- '--enable-wayland-ime' "$path"; then
+        warn "$path thiếu --enable-wayland-ime: Chromium/Electron sẽ không gõ tiếng Việt được"
+        note "thêm hai dòng: --enable-wayland-ime và --wayland-text-input-version=3"
+    fi
+done
+if [ -n "${GTK_IM_MODULE-}" ] && [ "${GLASS_SESSION-}" = 1 ]; then
+    warn "GTK_IM_MODULE=$GTK_IM_MODULE đang được đặt: trên Wayland nên bỏ để GTK gõ qua text-input-v3"
+fi
+
 section "Keyring"
 if has gnome-keyring-daemon; then ok "gnome-keyring"; else fail "thiếu gnome-keyring"; fi
 if grep -qs pam_gnome_keyring /etc/pam.d/sddm; then

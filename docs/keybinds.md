@@ -38,6 +38,15 @@ Kéo viền cửa sổ cũng đổi được kích thước.
 | `` SUPER + SHIFT + ` `` | Dời cửa sổ vào scratchpad |
 | Vuốt 3 ngón ngang | Đổi workspace |
 
+## Bộ gõ (fcitx5 + Bamboo)
+
+| Phím | Việc |
+| --- | --- |
+| `CTRL + Space` | Bật/tắt tiếng Việt |
+| `Shift trái` (khi đang bật) | Tạm chuyển sang gõ tiếng Anh |
+
+Mặc định gõ kiểu Telex. Đổi sang VNI, bảng mã hay phím tắt khác trong `fcitx5-configtool` (Bamboo → Cấu hình).
+
 ## Phiên
 
 | Phím | Việc |

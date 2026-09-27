@@ -39,18 +39,25 @@ setup() {
         "$prefix/bin/glass-setup" "$@"
 }
 
-# 3. Lần đầu tạo đủ file, và file nào cũng nạp mặc định của Glass.
-setup >/dev/null
+# 3. Lần đầu tạo đủ file; file phân lớp phải nạp mặc định của Glass.
+#    Riêng chromium-flags.conf đã có sẵn (file khởi tạo) thì giữ im lặng.
+mkdir -p "$home/.config"
+printf -- '--force-dark-mode\n' >"$home/.config/chromium-flags.conf"
+out=$(setup)
+case $out in *"bỏ qua 0"*) ;; *) fail "file khởi tạo có sẵn bị báo là lạ: $out" ;; esac
+[ "$(cat "$home/.config/chromium-flags.conf")" = "--force-dark-mode" ] || fail "file khởi tạo có sẵn bị ghi đè"
 for f in glass/hyprland.lua glass/hyprlock.conf glass/hypridle.conf glass/hyprpaper.conf kitty/kitty.conf; do
     [ -f "$home/.config/$f" ] || fail "glass-setup không tạo $f"
     grep -qF "$glassdir/" "$home/.config/$f" || fail "$f không nạp mặc định"
 done
+grep -q '^DefaultIM=bamboo$' "$home/.config/fcitx5/profile" || fail "profile fcitx5 không đặt Bamboo"
+grep -q -- '--enable-wayland-ime' "$home/.config/electron-flags.conf" || fail "thiếu cờ IME cho Electron"
 
 # 4. Chạy lại không đổi gì, kể cả file người dùng đã sửa.
 echo "-- sửa của người dùng" >>"$home/.config/glass/hyprland.lua"
 before=$(cat "$home/.config/glass/hyprland.lua")
 out=$(setup)
-case $out in *"tạo 0, giữ 5"*) ;; *) fail "lần chạy thứ hai không idempotent: $out" ;; esac
+case $out in *"tạo 0, giữ 8"*) ;; *) fail "lần chạy thứ hai không idempotent: $out" ;; esac
 [ "$(cat "$home/.config/glass/hyprland.lua")" = "$before" ] || fail "glass-setup ghi đè file đã sửa"
 
 # 5. File lạ được giữ nguyên nếu không có --force.

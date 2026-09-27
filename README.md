@@ -13,6 +13,7 @@ Glass không phải một bộ dotfile để chép tay: nó được đóng gói
 - Phiên chạy qua systemd, có portal, polkit agent, keyring
 - SDDM chạy greeter trên Wayland
 - Kitty trong suốt theo palette Aero Sky
+- Gõ tiếng Việt bằng fcitx5 + Bamboo (Telex), bật/tắt bằng `CTRL + Space`
 
 Chưa có shell (taskbar, start menu, thông báo, control center). Xem lộ trình trong [docs/architecture.md](docs/architecture.md).
 
@@ -38,10 +39,10 @@ Config chia 3 lớp:
 | Lớp | Vị trí | Ai sửa |
 | --- | --- | --- |
 | Mặc định | `/usr/share/glass/` | Gói; cập nhật theo phiên bản |
-| Của bạn | `~/.config/glass/`, `~/.config/kitty/kitty.conf` | Bạn; Glass tạo một lần, không bao giờ ghi đè |
+| Của bạn | `~/.config/glass/`, `~/.config/kitty/kitty.conf`, `~/.config/fcitx5/profile`, cờ Chromium/Electron | Bạn; Glass tạo một lần, không bao giờ ghi đè |
 | Sinh ra | `~/.local/state/glass/` | glassd (từ giai đoạn 2); không sửa tay |
 
-Mỗi file của bạn nạp mặc định trước, rồi mới tới phần bạn viết, nên chỉ cần ghi những gì muốn khác. Ví dụ trong `~/.config/glass/hyprland.lua`:
+Các file trong `~/.config/glass/` và `kitty.conf` nạp mặc định trước, rồi mới tới phần bạn viết, nên chỉ cần ghi những gì muốn khác. Profile fcitx5 và cờ Chromium/Electron chỉ là giá trị ban đầu, sau đó app tự quản. Ví dụ trong `~/.config/glass/hyprland.lua`:
 
 ```lua
 local glass = require("/usr/share/glass/hypr/glass")
