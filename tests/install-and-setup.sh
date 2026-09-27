@@ -20,7 +20,8 @@ fail() {
     exit 1
 }
 
-make -s install PREFIX="$prefix" SYSCONFDIR="$tmp/etc" >/dev/null
+# Chỉ phần không cần build Rust; glassd có test riêng (glassd-smoke.sh).
+make -s install-session install-sddm PREFIX="$prefix" SYSCONFDIR="$tmp/etc" >/dev/null
 
 # 1. Không còn placeholder nào.
 if grep -rl '@GLASS_DATADIR@' "$prefix" "$tmp/etc"; then
