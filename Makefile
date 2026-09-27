@@ -1,8 +1,10 @@
 # Glass: bố cục cài đặt. PKGBUILD gọi các target install-* ở đây, nên
 # đường dẫn cài chỉ được định nghĩa một chỗ.
 #
+#   make                                    build glassd, glassctl (cargo)
 #   make check                              kiểm tra tĩnh + test (cần shellcheck, lua, luac,
-#                                           desktop-file-validate, systemd-analyze)
+#                                           desktop-file-validate, systemd-analyze, cargo,
+#                                           dbus-run-session, python3)
 #   make install DESTDIR=/tmp/root          cài thử vào thư mục tạm
 #   sudo make install                       cài thẳng vào hệ thống (nên dùng PKGBUILD)
 
@@ -15,23 +17,34 @@ USERUNITDIR   ?= $(PREFIX)/lib/systemd/user
 SESSIONDIR    ?= $(DATADIR)/wayland-sessions
 SDDMCONFDIR   ?= $(PREFIX)/lib/sddm/sddm.conf.d
 PORTALCONFDIR ?= $(SYSCONFDIR)/xdg/xdg-desktop-portal
+DBUSSERVICEDIR ?= $(DATADIR)/dbus-1/services
+
+CARGO            ?= cargo
+CARGOFLAGS       ?= --locked
+CARGO_TARGET_DIR ?= $(CURDIR)/daemon/target
+export CARGO_TARGET_DIR
 
 LUA  ?= lua
 LUAC ?= luac
 
-BIN   = glass-session glass-setup glass-doctor glass-screenshot
-UNITS = glass-session.target glass-idle.service glass-wallpaper.service
+BIN          = glass-session glass-setup glass-doctor glass-screenshot
+DAEMON_BIN   = glassd glassctl
+UNITS        = glass-session.target glass-idle.service glass-wallpaper.service
+DAEMON_UNITS = glassd.service glass-nightlight.service
 
-# Thay @GLASS_DATADIR@ bằng đường dẫn cài thật.
-SUBST = sed -e 's|@GLASS_DATADIR@|$(GLASSDIR)|g'
+# Thay @GLASS_DATADIR@, @BINDIR@ bằng đường dẫn cài thật.
+SUBST = sed -e 's|@GLASS_DATADIR@|$(GLASSDIR)|g' -e 's|@BINDIR@|$(BINDIR)|g'
 
-.PHONY: all install install-session install-sddm uninstall check \
-        check-shell check-lua check-desktop check-units test wallpaper
+.PHONY: all build install install-session install-daemon install-sddm uninstall check \
+        check-shell check-lua check-desktop check-units check-rust test wallpaper
 
-all:
-	@echo "Không có gì để build ở giai đoạn 1. Xem: make check, make install."
+all: build
 
-install: install-session install-sddm
+# GLASS_DATADIR được nhúng vào glassd làm thư mục dữ liệu mặc định.
+build:
+	GLASS_DATADIR="$(GLASSDIR)" $(CARGO) build --release $(CARGOFLAGS) --manifest-path daemon/Cargo.toml
+
+install: install-session install-daemon install-sddm
 
 install-session:
 	install -d "$(DESTDIR)$(BINDIR)"
@@ -59,21 +72,36 @@ install-session:
 	install -Dm644 session/portals/hyprland-portals.conf \
 		"$(DESTDIR)$(PORTALCONFDIR)/hyprland-portals.conf"
 
+# Không tự build: PKGBUILD build ở bước build() rồi mới cài.
+install-daemon:
+	for b in $(DAEMON_BIN); do \
+		install -Dm755 "$(CARGO_TARGET_DIR)/release/$$b" "$(DESTDIR)$(BINDIR)/$$b"; \
+	done
+	install -Dm644 -t "$(DESTDIR)$(GLASSDIR)/templates" theme/runtime/*.j2
+	for u in $(DAEMON_UNITS); do \
+		install -d "$(DESTDIR)$(USERUNITDIR)"; \
+		$(SUBST) "daemon/data/$$u" > "$(DESTDIR)$(USERUNITDIR)/$$u"; \
+		chmod 644 "$(DESTDIR)$(USERUNITDIR)/$$u"; \
+	done
+	install -Dm644 daemon/data/io.github.canxphung.Glass1.service \
+		"$(DESTDIR)$(DBUSSERVICEDIR)/io.github.canxphung.Glass1.service"
+
 install-sddm:
 	install -Dm644 session/sddm/glass.conf "$(DESTDIR)$(SDDMCONFDIR)/glass.conf"
 
 uninstall:
-	for f in $(BIN); do rm -f "$(DESTDIR)$(BINDIR)/$$f"; done
+	for f in $(BIN) $(DAEMON_BIN); do rm -f "$(DESTDIR)$(BINDIR)/$$f"; done
 	rm -rf "$(DESTDIR)$(GLASSDIR)"
 	rm -f "$(DESTDIR)$(SESSIONDIR)/glass.desktop"
-	for u in $(UNITS); do rm -f "$(DESTDIR)$(USERUNITDIR)/$$u"; done
+	for u in $(UNITS) $(DAEMON_UNITS); do rm -f "$(DESTDIR)$(USERUNITDIR)/$$u"; done
+	rm -f "$(DESTDIR)$(DBUSSERVICEDIR)/io.github.canxphung.Glass1.service"
 	rm -f "$(DESTDIR)$(PORTALCONFDIR)/hyprland-portals.conf"
 	rm -f "$(DESTDIR)$(SDDMCONFDIR)/glass.conf"
 
-check: check-shell check-lua check-desktop check-units test
+check: check-shell check-lua check-desktop check-units check-rust test
 
 check-shell:
-	shellcheck -s sh bin/* tests/*.sh
+	LC_ALL=C.UTF-8 shellcheck -s sh bin/* tests/*.sh
 
 check-lua:
 	for f in $$(find defaults skel -name '*.lua'); do \
@@ -90,9 +118,15 @@ check-desktop:
 check-units:
 	./tests/check-units.sh
 
+check-rust:
+	$(CARGO) fmt --all --manifest-path daemon/Cargo.toml --check
+	$(CARGO) clippy $(CARGOFLAGS) --manifest-path daemon/Cargo.toml --all-targets -- -D warnings
+	$(CARGO) test $(CARGOFLAGS) --manifest-path daemon/Cargo.toml
+
 test:
 	./tests/install-and-setup.sh
 	LUA=$(LUA) ./tests/lua-smoke.sh
+	./tests/glassd-smoke.sh
 
 wallpaper:
 	python3 wallpapers/make-aero.py

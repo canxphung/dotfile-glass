@@ -1,0 +1,15 @@
+# Sinh bởi glassd từ palette "{{ palette.name }}" và settings.toml. Đừng sửa: file sẽ bị ghi đè.
+# Màn hình khoá của Glass dùng các biến dưới.
+
+$glass_font        = {{ font_family | hyprlang }}
+$glass_bg          = {{ palette.surface.dark | rgba('ff') }}
+$glass_text        = {{ palette.text.on_dark | rgba('ff') }}
+$glass_muted       = {{ palette.text.muted | rgba('ff') }}
+$glass_card        = {{ palette.glass.tint | rgba('2e') }}
+$glass_frame       = {{ palette.glass.tint_light | rgba('cc') }} {{ palette.glass.tint_deep | rgba('99') }} 90deg
+$glass_shadow      = {{ palette.glass.shadow | rgba('99') }}
+$glass_text_shadow = {{ palette.glass.shadow | rgba('aa') }}
+$glass_inner       = {{ palette.surface.dark | rgba('aa') }}
+$glass_check       = {{ palette.accent.bright | rgba('ee') }} {{ palette.accent.normal | rgba('ee') }} 90deg
+$glass_fail        = {{ palette.state.danger | rgba('ee') }} {{ palette.terminal.bright[1] | rgba('ee') }} 90deg
+$glass_caps        = {{ palette.state.warning | rgba('ee') }}

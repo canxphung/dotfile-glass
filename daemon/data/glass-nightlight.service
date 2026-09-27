@@ -1,0 +1,13 @@
+[Unit]
+Description=Glass: lọc ánh sáng xanh theo giờ (hyprsunset)
+Documentation=https://wiki.hypr.land/Hypr-Ecosystem/hyprsunset/
+PartOf=graphical-session.target
+After=graphical-session.target glassd.service
+ConditionEnvironment=WAYLAND_DISPLAY
+
+# glassd bật/tắt dịch vụ này theo night_light.enabled trong settings.toml.
+[Service]
+Type=simple
+ExecStart=/usr/bin/hyprsunset --config %S/glass/nightlight.conf
+Restart=on-failure
+Slice=session.slice

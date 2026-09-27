@@ -80,6 +80,21 @@ foreign=0
 
 mkdir -p "$state_home/glass"
 
+# File state khởi tạo (theme, idle, hình nền) mà hyprlock, hypridle,
+# hyprpaper, kitty nạp. glassd ghi đè chúng theo settings.toml của bạn;
+# bản khởi tạo chỉ để phiên vẫn chạy được khi glassd chưa lên. Chỉ chép
+# file còn thiếu, kể cả khi có --force.
+if [ -d "$datadir/state" ]; then
+    seeds=$(cd "$datadir/state" && find . -type f | sed 's|^\./||' | sort)
+    for rel in $seeds; do
+        dst=$state_home/glass/$rel
+        if [ ! -e "$dst" ]; then
+            mkdir -p "$(dirname "$dst")"
+            cp "$datadir/state/$rel" "$dst"
+        fi
+    done
+fi
+
 # Đường dẫn trong skel không có khoảng trắng, nên tách theo dòng là an toàn.
 files=$(cd "$skel" && find . -type f | sed 's|^\./||' | sort)
 

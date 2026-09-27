@@ -6,14 +6,16 @@
 # Bản phát hành sau này sẽ lấy source từ git tag.
 
 pkgbase=glass-desktop
-pkgname=(glass-desktop glass-session glass-sddm)
-pkgver=0.1.0
+pkgname=(glass-desktop glass-session glassd glass-sddm)
+pkgver=0.2.0
 pkgrel=1
 pkgdesc='Glass: desktop Aero trên Hyprland, tối ưu cho CachyOS'
-arch=(any)
+arch=(x86_64)
 url='https://github.com/canxphung/dotfile-glass'
 license=(MIT)
-makedepends=(git)
+makedepends=(git cargo)
+# Cờ build Rust (RUSTFLAGS) lấy từ makepkg.conf, nên trên CachyOS glassd
+# được build với cờ tối ưu của CachyOS.
 
 _root() {
     realpath "$startdir/.."
@@ -21,7 +23,25 @@ _root() {
 
 pkgver() {
     cd "$(_root)"
-    printf '0.1.0.r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+    printf '0.2.0.r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+    cd "$(_root)/daemon"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+    cd "$(_root)"
+    export RUSTUP_TOOLCHAIN=stable
+    make build PREFIX=/usr CARGOFLAGS=--frozen
+}
+
+check() {
+    cd "$(_root)/daemon"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo test --frozen
 }
 
 _license() {
@@ -30,12 +50,14 @@ _license() {
 
 package_glass-desktop() {
     pkgdesc='Glass: desktop Aero trên Hyprland (gói tổng)'
-    depends=(glass-session glass-sddm)
+    arch=(any)
+    depends=(glass-session glassd glass-sddm)
     _license
 }
 
 package_glass-session() {
     pkgdesc='Glass: phiên Hyprland, config mặc định, portal và script'
+    arch=(any)
     depends=(
         # compositor và các tool đi kèm
         hyprland hyprlock hypridle hyprpaper hyprpolkitagent hyprshutdown
@@ -59,8 +81,21 @@ package_glass-session() {
     _license
 }
 
+package_glassd() {
+    pkgdesc='Glass: daemon settings (glassd) và dòng lệnh glassctl'
+    depends=(
+        glass-session glibc gcc-libs dbus systemd
+        # lệnh glassd gọi khi áp settings
+        glib2 hyprland hyprsunset procps-ng
+    )
+
+    make -C "$(_root)" DESTDIR="$pkgdir" PREFIX=/usr install-daemon
+    _license
+}
+
 package_glass-sddm() {
     pkgdesc='Glass: cấu hình SDDM, greeter chạy Wayland qua weston'
+    arch=(any)
     depends=(sddm weston)
 
     make -C "$(_root)" DESTDIR="$pkgdir" PREFIX=/usr install-sddm

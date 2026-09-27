@@ -1,0 +1,15 @@
+[Unit]
+Description=Glass: daemon settings (glassd)
+Documentation=https://github.com/canxphung/dotfile-glass/blob/main/docs/ipc.md
+PartOf=graphical-session.target
+After=graphical-session.target
+# Render file state trước khi hypridle/hyprpaper đọc chúng.
+Before=glass-idle.service glass-wallpaper.service
+
+[Service]
+# Sẵn sàng khi đã có tên D-Bus, tức là file state đã được render.
+Type=dbus
+BusName=io.github.canxphung.Glass1
+ExecStart=@BINDIR@/glassd
+Restart=on-failure
+Slice=session.slice

@@ -1,0 +1,48 @@
+# Aero Twilight — kính tím sẫm, hợp làm việc buổi tối.
+#
+# Cùng cấu trúc với sky.toml; xem comment trong file đó.
+
+name = "twilight"
+display_name = "Aero Twilight"
+
+[glass]
+tint = "#8b78e6"
+tint_light = "#e2dcff"
+tint_deep = "#5a45b8"
+inactive_light = "#bcb3d9"
+inactive_deep = "#7d6fa6"
+edge = "#1f1640"
+highlight = "#ffffff"
+shadow = "#120c26"
+
+[text]
+on_glass = "#1a1330"
+on_dark = "#f1edff"
+muted = "#a79cc9"
+
+[surface]
+dark = "#141024"
+light = "#f6f4fd"
+
+[accent]
+normal = "#7c5ce6"
+bright = "#c9b8ff"
+selection = "#4b3a8f"
+
+[state]
+danger = "#e5534b"
+warning = "#e8c46a"
+success = "#6cc070"
+
+[terminal]
+foreground = "#e6e0f7"
+background = "#141024"
+cursor = "#c9b8ff"
+normal = ["#221b38", "#e5534b", "#6cc070", "#e8c46a", "#8b9cf0", "#b58cf0", "#6fcad6", "#d1cae6"]
+bright = ["#4a4070", "#ff7b72", "#8edc8f", "#f5d98b", "#b3c0ff", "#d9b8ff", "#98e3ec", "#faf8ff"]
+
+[shape]
+radius = 8
+border = 4
+blur_size = 6
+blur_passes = 3

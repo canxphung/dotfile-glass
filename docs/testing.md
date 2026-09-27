@@ -1,6 +1,8 @@
-# Test trên máy thật: giai đoạn 1
+# Test trên máy thật
 
-Container phát triển không chạy được Hyprland hay SDDM, nên `make check` chỉ kiểm được cú pháp, bố cục cài đặt và chạy thử config Lua với một `hl` giả. Những mục dưới phải thử trên máy CachyOS.
+Container phát triển không chạy được Hyprland hay SDDM. `make check` kiểm được cú pháp, bố cục cài đặt, chạy thử config Lua với một `hl` giả, và chạy glassd thật trên một session bus riêng (lệnh gsettings, hyprctl, systemctl được thay bằng stub). Hiển thị và phiên thật phải thử trên máy CachyOS.
+
+Mục 0–9 là giai đoạn 1, mục 10 là giai đoạn 2 (glassd).
 
 Gặp lỗi ở bước nào thì gửi lại: số bước, việc đã làm, và kết quả của các lệnh trong mục [Thu log](#thu-log).
 
@@ -16,7 +18,8 @@ makepkg -si
 glass-doctor
 ```
 
-- [ ] `makepkg` cài đủ 3 gói: `glass-desktop`, `glass-session`, `glass-sddm`
+- [ ] `makepkg` cài đủ 4 gói: `glass-desktop`, `glass-session`, `glassd`, `glass-sddm`
+- [ ] `glassd --version` in `(dữ liệu: /usr/share/glass)`
 - [ ] `glass-doctor` không có lỗi (✗). Cảnh báo (!) về config chưa tạo là bình thường trước lần đăng nhập đầu.
 
 ## 2. Màn hình đăng nhập
@@ -73,12 +76,20 @@ systemctl --user status glass-session.target glass-idle glass-wallpaper hyprpolk
 - [ ] Nhập sai mật khẩu: ô đỏ lên, báo lỗi; nhập đúng thì mở khoá
 - [ ] Phím âm lượng vẫn chạy khi đang khoá
 
-Thử hẹn giờ rảnh cho nhanh: sửa `~/.config/glass/hypridle.conf` thành `$dim_timeout = 10`, `$lock_timeout = 20`, `$screen_off_timeout = 30`, rồi `systemctl --user restart glass-idle`. Để yên máy:
+Thử hẹn giờ rảnh cho nhanh (glassd tự khởi động lại hypridle):
+
+```sh
+glassctl set idle.dim 10
+glassctl set idle.lock 20
+glassctl set idle.screen_off 30
+```
+
+Để yên máy:
 
 - [ ] ~10 giây: tối màn hình; ~20 giây: khoá; ~30 giây: tắt màn hình; chạm chuột thì sáng lại
 - [ ] Mở video toàn màn hình thì không tự khoá
 
-Nhớ trả lại giá trị cũ sau khi thử.
+Trả lại mặc định: `glassctl reset idle.dim`, `glassctl reset idle.lock`, `glassctl reset idle.screen_off`.
 
 - [ ] Gập máy / `systemctl suspend`: thức dậy thấy màn hình khoá ngay, không lộ desktop
 
@@ -125,6 +136,38 @@ hl.env("GLASS_SHUTDOWN_VT", "1")
 
 SDDM thường nằm ở VT1; nếu vẫn đen thì thử `"2"`.
 
+## 10. glassd và settings
+
+Trong phiên Glass:
+
+- [ ] `systemctl --user status glassd` đang chạy; `glass-doctor` báo "glassd đang chạy"
+- [ ] `~/.config/glass/settings.toml` đã có, đầy đủ comment
+- [ ] `glassctl get` in đủ các khoá
+
+Đổi palette, mọi thứ phải đổi màu ngay, không cần đăng xuất:
+
+```sh
+glassctl palettes
+glassctl palette twilight
+```
+
+- [ ] Viền cửa sổ chuyển sang tím
+- [ ] Kitty đang mở đổi màu ngay (chữ, nền)
+- [ ] `SUPER + L`: màn hình khoá dùng màu tím
+- [ ] `glassctl palette sky` đưa mọi thứ về như cũ
+
+Các thứ khác:
+
+- [ ] `glassctl wallpaper ~/Pictures/<hình bất kỳ>`: hình nền đổi ngay; `glassctl wallpaper default` trả lại
+- [ ] `glassctl set appearance.color_scheme light`: app GTK4 (vd. Nautilus nếu có) và Firefox/Chromium chuyển sáng; đặt lại `dark`
+- [ ] `glassctl set appearance.monospace_font "JetBrainsMono Nerd Font 14"`: chữ kitty to lên ngay
+- [ ] `glassctl set idle.lock 20`, để yên máy 20 giây: khoá. Trả lại `glassctl reset idle.lock`
+- [ ] Night light: `glassctl set night_light.start "$(date -d '-1 min' +%H:%M)"`, `glassctl set night_light.enabled true` → màn hình ấm lên; `glassctl set night_light.enabled false` → trở lại. Rồi `glassctl reset night_light.start`
+- [ ] Mở `settings.toml` bằng trình soạn thảo, đổi `palette = "twilight"`, lưu: màu đổi ngay, comment còn nguyên
+- [ ] Cố tình gõ sai (xoá một dấu `]`), lưu: `glassctl set idle.dim 100` báo lỗi file và không ghi đè; sửa lại thì chạy tiếp
+- [ ] `glassctl watch` ở một terminal, đổi palette ở terminal khác: dòng `appearance.palette = ...` hiện ra
+- [ ] Khởi động lại máy: palette, hình nền, thời gian khoá vẫn giữ như đã đặt
+
 ## Thu log
 
 ```sh
@@ -133,5 +176,6 @@ hyprctl configerrors
 hyprctl rollinglog | tail -n 100
 journalctl --user -b -u glass-session.target -u glass-idle -u glass-wallpaper -u hyprpolkitagent
 journalctl --user -b -u 'app-org.fcitx.Fcitx5@autostart.service'
+journalctl --user -b -u glassd -u glass-nightlight
 journalctl -b -u sddm | tail -n 100
 ```

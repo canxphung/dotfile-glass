@@ -1,0 +1,27 @@
+# Sinh bởi glassd từ palette "{{ palette.name }}" và settings.toml. Đừng sửa: file sẽ bị ghi đè.
+
+font_family      {{ monospace_family }}
+font_size        {{ monospace_size }}
+
+foreground           {{ palette.terminal.foreground }}
+background           {{ palette.terminal.background }}
+selection_foreground {{ palette.terminal.bright[7] }}
+selection_background {{ palette.accent.selection }}
+cursor               {{ palette.terminal.cursor }}
+cursor_text_color    {{ palette.terminal.background }}
+url_color            {{ palette.accent.bright }}
+
+active_border_color   {{ palette.glass.tint }}
+inactive_border_color {{ palette.terminal.bright[0] }}
+
+active_tab_foreground   {{ palette.text.on_glass }}
+active_tab_background   {{ palette.accent.bright }}
+inactive_tab_foreground {{ palette.text.muted }}
+inactive_tab_background {{ palette.terminal.normal[0] }}
+
+{% for color in palette.terminal.normal %}
+color{{ loop.index0 }} {{ color }}
+{% endfor %}
+{% for color in palette.terminal.bright %}
+color{{ loop.index0 + 8 }} {{ color }}
+{% endfor %}

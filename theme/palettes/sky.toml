@@ -1,11 +1,9 @@
 # Aero Sky — palette mặc định của Glass.
 #
-# Đây là nguồn màu duy nhất. Từ giai đoạn 2, glassd render các file màu
-# từ đây. Ở giai đoạn 1, các giá trị dưới được chép tay vào:
-#   defaults/hypr/modules/colors.lua, defaults/hypr/modules/layout.lua
-#   defaults/hypr/hyprlock.conf
-#   defaults/kitty/glass.conf
-# Sửa màu ở đây thì nhớ sửa cả các file đó cho tới khi có glassd.
+# Nguồn màu duy nhất: glassd render các file theme trong
+# ~/.local/state/glass/theme/ từ palette đang chọn (appearance.palette).
+# Palette riêng của bạn đặt trong ~/.local/share/glass/palettes/<tên>.toml,
+# với name = "<tên>".
 
 name = "sky"
 display_name = "Aero Sky"
@@ -14,6 +12,8 @@ display_name = "Aero Sky"
 tint = "#74b8fc"          # màu phủ kính (Sky của Windows 7)
 tint_light = "#cfeaff"    # phần sáng phía trên khung
 tint_deep = "#3a7fd0"     # phần đậm phía dưới khung
+inactive_light = "#a9c3dd" # khung cửa sổ không focus
+inactive_deep = "#6f8fb0"
 edge = "#0e2a47"          # đường viền tối bên ngoài
 highlight = "#ffffff"     # vệt bóng
 shadow = "#0a1a2e"

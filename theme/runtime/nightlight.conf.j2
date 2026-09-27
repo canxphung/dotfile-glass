@@ -1,0 +1,12 @@
+# Sinh bởi glassd từ settings.toml, mục [night_light]. Đừng sửa: file sẽ bị ghi đè.
+# hyprsunset áp profile có giờ gần nhất đã qua.
+
+profile {
+    time = {{ settings.night_light.end }}
+    identity = true
+}
+
+profile {
+    time = {{ settings.night_light.start }}
+    temperature = {{ settings.night_light.temperature }}
+}

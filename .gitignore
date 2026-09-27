@@ -3,3 +3,6 @@
 /pkg/pkg/
 /pkg/*.pkg.tar.*
 /pkg/*.log
+
+# cargo
+/daemon/target/

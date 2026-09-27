@@ -1,0 +1,14 @@
+[package]
+name = "glassctl"
+description = "Glass: dòng lệnh điều khiển glassd qua D-Bus"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+glass-core.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+zbus = { workspace = true, features = ["blocking-api"] }
