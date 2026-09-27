@@ -1,0 +1,106 @@
+#!/bin/sh
+# glass-setup: tạo các file cấu hình của bạn từ bản mẫu của Glass.
+#
+#   glass-setup           tạo file còn thiếu, không đụng file đã có
+#   glass-setup --force   sao lưu file đã có rồi thay bằng bản mẫu
+#   glass-setup --quiet   như mặc định nhưng không in gì (glass-session dùng)
+#
+# Bản mẫu nằm trong @GLASS_DATADIR@/skel và được chép vào ~/.config
+# theo cùng đường dẫn, ví dụ:
+#   skel/glass/hyprland.lua  ->  ~/.config/glass/hyprland.lua
+#   skel/kitty/kitty.conf    ->  ~/.config/kitty/kitty.conf
+# Bản sao lưu nằm trong ~/.local/state/glass/backup/<thời gian>/.
+
+set -eu
+
+datadir=${GLASS_DATADIR:-@GLASS_DATADIR@}
+skel=$datadir/skel
+config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+state_home=${XDG_STATE_HOME:-$HOME/.local/state}
+
+force=0
+quiet=0
+
+die() {
+    printf 'glass-setup: %s\n' "$*" >&2
+    exit 1
+}
+
+say() {
+    if [ "$quiet" = 0 ]; then
+        printf '%s\n' "$*"
+    fi
+}
+
+for arg in "$@"; do
+    case $arg in
+    --force) force=1 ;;
+    --quiet) quiet=1 ;;
+    -h | --help)
+        sed -n '2,/^$/s/^# \{0,1\}//p' "$0"
+        exit 0
+        ;;
+    *) die "tham số không rõ: $arg (xem glass-setup --help)" ;;
+    esac
+done
+
+[ -d "$skel" ] || die "không thấy thư mục mẫu $skel (gói glass-session đã cài chưa?)"
+
+# File "của Glass" là file có nạp mặc định từ $datadir, kể cả khi bạn đã sửa.
+is_glass_file() {
+    grep -qF "$datadir/" "$1" 2>/dev/null
+}
+
+backup_root=$state_home/glass/backup/$(date +%Y%m%d-%H%M%S)
+
+backup() {
+    mkdir -p "$(dirname "$backup_root/$1")"
+    # -L: nếu là symlink thì sao lưu nội dung thật.
+    cp -pL "$2" "$backup_root/$1"
+}
+
+install_template() {
+    mkdir -p "$(dirname "$2")"
+    # Xoá trước để không ghi xuyên qua symlink vào file của người khác.
+    rm -f "$2"
+    cp "$1" "$2"
+}
+
+created=0
+kept=0
+replaced=0
+foreign=0
+
+mkdir -p "$state_home/glass"
+
+# Đường dẫn trong skel không có khoảng trắng, nên tách theo dòng là an toàn.
+files=$(cd "$skel" && find . -type f | sed 's|^\./||' | sort)
+
+for rel in $files; do
+    src=$skel/$rel
+    dst=$config_home/$rel
+
+    if [ ! -e "$dst" ] && [ ! -L "$dst" ]; then
+        install_template "$src" "$dst"
+        created=$((created + 1))
+        say "  + $dst"
+    elif [ "$force" = 1 ]; then
+        backup "$rel" "$dst"
+        install_template "$src" "$dst"
+        replaced=$((replaced + 1))
+        say "  ~ $dst (bản cũ: $backup_root/$rel)"
+    elif is_glass_file "$dst"; then
+        kept=$((kept + 1))
+    else
+        foreign=$((foreign + 1))
+        say "  ! $dst đã có sẵn và không phải của Glass, giữ nguyên"
+    fi
+done
+
+say "Glass: tạo $created, giữ $kept, thay $replaced, bỏ qua $foreign file."
+
+if [ "$foreign" -gt 0 ]; then
+    say "Muốn dùng bản của Glass thì chạy: glass-setup --force (file cũ sẽ được sao lưu)."
+    say "Riêng kitty, có thể giữ file của bạn và thêm dòng:"
+    say "  include $datadir/kitty/glass.conf"
+fi

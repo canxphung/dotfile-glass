@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Glass
+Comment=Desktop Glass: Hyprland với giao diện Aero
+Exec=glass-session
+TryExec=glass-session
+Type=Application
+DesktopNames=Hyprland
+Keywords=wayland;hyprland;glass;aero;

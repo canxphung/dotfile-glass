@@ -1,0 +1,66 @@
+# Maintainer: canxphung <https://github.com/canxphung>
+#
+# PKGBUILD dùng khi phát triển: build từ chính repo đang checkout (thư mục
+# cha của pkg/), kể cả thay đổi chưa commit. Cách dùng:
+#   cd pkg && makepkg -si
+# Bản phát hành sau này sẽ lấy source từ git tag.
+
+pkgbase=glass-desktop
+pkgname=(glass-desktop glass-session glass-sddm)
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Glass: desktop Aero trên Hyprland, tối ưu cho CachyOS'
+arch=(any)
+url='https://github.com/canxphung/dotfile-glass'
+license=(MIT)
+makedepends=(git)
+
+_root() {
+    realpath "$startdir/.."
+}
+
+pkgver() {
+    cd "$(_root)"
+    printf '0.1.0.r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+_license() {
+    install -Dm644 "$(_root)/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
+
+package_glass-desktop() {
+    pkgdesc='Glass: desktop Aero trên Hyprland (gói tổng)'
+    depends=(glass-session glass-sddm)
+    _license
+}
+
+package_glass-session() {
+    pkgdesc='Glass: phiên Hyprland, config mặc định, portal và script'
+    depends=(
+        # compositor và các tool đi kèm
+        hyprland hyprlock hypridle hyprpaper hyprpolkitagent hyprshutdown
+        # portal, keyring
+        xdg-desktop-portal-hyprland xdg-desktop-portal-gtk gnome-keyring
+        # app và tiện ích dùng trong phím tắt
+        kitty qt6ct wireplumber brightnessctl playerctl
+        grim slurp wl-clipboard xdg-user-dirs dbus
+        # font
+        ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
+    )
+    optdepends=(
+        'hyprlauncher: launcher tạm cho SUPER + R trước khi có start menu'
+        'noto-fonts-cjk: hiển thị chữ Trung, Nhật, Hàn'
+    )
+    backup=(etc/xdg/xdg-desktop-portal/hyprland-portals.conf)
+
+    make -C "$(_root)" DESTDIR="$pkgdir" PREFIX=/usr install-session
+    _license
+}
+
+package_glass-sddm() {
+    pkgdesc='Glass: cấu hình SDDM, greeter chạy Wayland qua weston'
+    depends=(sddm weston)
+
+    make -C "$(_root)" DESTDIR="$pkgdir" PREFIX=/usr install-sddm
+    _license
+}

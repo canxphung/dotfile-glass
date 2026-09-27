@@ -1,0 +1,27 @@
+-- ~/.config/glass/hyprland.lua
+--
+-- Config Hyprland của phiên Glass. File của bạn: Glass tạo nó một lần và
+-- không bao giờ ghi đè. Config Hyprland khác trong ~/.config/hypr (nếu có)
+-- vẫn giữ nguyên cho phiên "Hyprland" thường.
+--
+-- Dòng dưới nạp toàn bộ mặc định của Glass (cập nhật theo gói):
+local glass = require("@GLASS_DATADIR@/hypr/glass")
+
+-- Chỉnh riêng từ đây trở xuống; các dòng sau đè lên mặc định.
+--
+-- Màn hình (xem tên bằng `hyprctl monitors`):
+--   hl.monitor({ output = "eDP-1", mode = "2560x1600@165", position = "0x0", scale = 1.25 })
+--
+-- Bàn phím:
+--   hl.config({ input = { kb_layout = "us" } })
+--
+-- Máy yếu, giảm blur cho nhẹ:
+--   hl.config({ decoration = { blur = { passes = 2, xray = true } } })
+--
+-- Đổi phím:
+--   hl.unbind(glass.mod .. " + Q")
+--   hl.bind(glass.mod .. " + W", hl.dsp.window.close())
+--
+-- Máy chỉ dùng card NVIDIA (không phải laptop lai iGPU + NVIDIA):
+--   hl.env("LIBVA_DRIVER_NAME", "nvidia")
+--   hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")

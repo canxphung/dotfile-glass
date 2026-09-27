@@ -1,0 +1,115 @@
+#!/bin/sh
+# glass-session: vào, ra và khoá phiên Glass.
+#
+#   glass-session              chạy phiên (SDDM gọi qua glass.desktop)
+#   glass-session services     bật các dịch vụ của phiên (Hyprland gọi lúc khởi động)
+#   glass-session lock         khoá máy (qua logind, để hypridle xử lý)
+#   glass-session lock-screen  chạy hyprlock với config của Glass (hypridle gọi)
+#   glass-session logout       đăng xuất
+#   glass-session reboot       khởi động lại
+#   glass-session poweroff     tắt máy
+#
+# Biến môi trường:
+#   GLASS_SHUTDOWN_VT=N  chuyển về VT N sau khi thoát (máy NVIDIA + SDDM bị
+#                        màn hình đen khi đăng xuất). Đặt bằng hl.env trong
+#                        ~/.config/glass/hyprland.lua; cần sudo không mật
+#                        khẩu cho chvt, xem docs/testing.md
+
+set -eu
+
+config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+glass_config=$config_home/glass
+
+die() {
+    printf 'glass-session: %s\n' "$*" >&2
+    exit 1
+}
+
+# Thoát Hyprland nhẹ nhàng: hyprshutdown hỏi các app đóng trước.
+shutdown_session() {
+    label=$1
+    post_cmd=${2-}
+
+    if command -v hyprshutdown >/dev/null 2>&1; then
+        set -- --top-label "$label"
+        if [ -n "$post_cmd" ]; then
+            set -- "$@" --post-cmd "$post_cmd"
+        fi
+        if [ -n "${GLASS_SHUTDOWN_VT-}" ]; then
+            set -- "$@" --vt "$GLASS_SHUTDOWN_VT"
+        fi
+        exec hyprshutdown "$@"
+    fi
+
+    # Không có hyprshutdown: thoát thẳng (app bị kill thay vì tự đóng).
+    hyprctl dispatch 'hl.dsp.exit()' >/dev/null
+    if [ -n "$post_cmd" ]; then
+        exec sh -c "$post_cmd"
+    fi
+    exit 0
+}
+
+cmd=${1:-start}
+
+case $cmd in
+start)
+    export GLASS_SESSION=1
+    export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-Hyprland}"
+
+    # Tạo các file còn thiếu trong ~/.config/glass (không ghi đè gì).
+    glass-setup --quiet || printf 'glass-session: glass-setup lỗi, vẫn tiếp tục\n' >&2
+
+    set -- --config "$glass_config/hyprland.lua"
+    if command -v start-hyprland >/dev/null 2>&1; then
+        exec start-hyprland -- "$@"
+    fi
+    exec Hyprland "$@"
+    ;;
+
+services)
+    # Hyprland tự import các biến này vào systemd, nhưng chạy song song
+    # với lệnh này. Import lại để chắc chắn dịch vụ thấy chúng.
+    vars=
+    for v in WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP \
+        GLASS_SESSION QT_QPA_PLATFORMTHEME XCURSOR_SIZE HYPRCURSOR_SIZE; do
+        eval "is_set=\${$v+x}"
+        if [ -n "$is_set" ]; then
+            vars="$vars $v"
+        fi
+    done
+    # shellcheck disable=SC2086 # tách từ là cố ý
+    dbus-update-activation-environment --systemd $vars
+    exec systemctl --user start glass-session.target
+    ;;
+
+lock)
+    exec loginctl lock-session
+    ;;
+
+lock-screen)
+    if [ -f "$glass_config/hyprlock.conf" ]; then
+        exec hyprlock --config "$glass_config/hyprlock.conf"
+    fi
+    exec hyprlock
+    ;;
+
+logout)
+    shutdown_session "Đang đăng xuất..."
+    ;;
+
+reboot)
+    shutdown_session "Đang khởi động lại..." "systemctl reboot"
+    ;;
+
+poweroff)
+    shutdown_session "Đang tắt máy..." "systemctl poweroff"
+    ;;
+
+-h | --help | help)
+    sed -n '2,/^$/s/^# \{0,1\}//p' "$0"
+    ;;
+
+*)
+    die "lệnh không rõ: $cmd (xem glass-session --help)"
+    ;;
+esac

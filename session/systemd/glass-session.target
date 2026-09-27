@@ -1,0 +1,10 @@
+[Unit]
+Description=Glass desktop session
+Documentation=https://github.com/canxphung/dotfile-glass
+# Hyprland tự bật graphical-session.target khi khởi động và tắt nó khi
+# thoát; target này sống và chết theo nó.
+BindsTo=graphical-session.target
+After=graphical-session.target
+Wants=glass-idle.service glass-wallpaper.service hyprpolkitagent.service
+# Chạy các app có file autostart (~/.config/autostart, /etc/xdg/autostart).
+Wants=xdg-desktop-autostart.target

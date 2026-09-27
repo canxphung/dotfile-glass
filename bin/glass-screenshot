@@ -1,0 +1,39 @@
+#!/bin/sh
+# glass-screenshot: chụp màn hình, lưu vào ~/Pictures/Screenshots và
+# chép vào clipboard.
+#
+#   glass-screenshot region   chọn vùng bằng chuột (mặc định)
+#   glass-screenshot screen   chụp mọi màn hình
+
+set -eu
+
+mode=${1:-region}
+
+pictures=$(xdg-user-dir PICTURES 2>/dev/null || true)
+# xdg-user-dir trả về $HOME khi chưa cấu hình thư mục Pictures.
+if [ -z "$pictures" ] || [ "$pictures" = "$HOME" ]; then
+    pictures=$HOME/Pictures
+fi
+dir=$pictures/Screenshots
+mkdir -p "$dir"
+file=$dir/$(date +%Y-%m-%d_%H-%M-%S).png
+
+case $mode in
+region)
+    # Huỷ chọn vùng (Esc) thì thoát êm.
+    geometry=$(slurp -d) || exit 0
+    grim -g "$geometry" "$file"
+    ;;
+screen)
+    grim "$file"
+    ;;
+*)
+    printf 'glass-screenshot: chế độ không rõ: %s (region|screen)\n' "$mode" >&2
+    exit 1
+    ;;
+esac
+
+wl-copy --type image/png <"$file"
+
+# Giai đoạn 1 chưa có server thông báo; dùng thông báo có sẵn của Hyprland.
+hyprctl notify 1 4000 "rgb(8fd3ff)" "Đã chụp: $file" >/dev/null 2>&1 || true

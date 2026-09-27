@@ -1,0 +1,52 @@
+# Aero Sky — palette mặc định của Glass.
+#
+# Đây là nguồn màu duy nhất. Từ giai đoạn 2, glassd render các file màu
+# từ đây. Ở giai đoạn 1, các giá trị dưới được chép tay vào:
+#   defaults/hypr/modules/colors.lua, defaults/hypr/modules/layout.lua
+#   defaults/hypr/hyprlock.conf
+#   defaults/kitty/glass.conf
+# Sửa màu ở đây thì nhớ sửa cả các file đó cho tới khi có glassd.
+
+name = "sky"
+display_name = "Aero Sky"
+
+[glass]
+tint = "#74b8fc"          # màu phủ kính (Sky của Windows 7)
+tint_light = "#cfeaff"    # phần sáng phía trên khung
+tint_deep = "#3a7fd0"     # phần đậm phía dưới khung
+edge = "#0e2a47"          # đường viền tối bên ngoài
+highlight = "#ffffff"     # vệt bóng
+shadow = "#0a1a2e"
+
+[text]
+on_glass = "#0b1a2b"      # chữ trên kính sáng
+on_dark = "#eaf4ff"       # chữ trên nền tối
+muted = "#8aa4c0"
+
+[surface]
+dark = "#0c1726"          # nền terminal, nền tối
+light = "#f3f8fd"
+
+[accent]
+normal = "#2b8ce6"
+bright = "#8fd3ff"
+selection = "#2b5c8f"
+
+[state]
+danger = "#e5534b"
+warning = "#e8c46a"
+success = "#6cc070"
+
+[terminal]
+foreground = "#dce9f7"
+background = "#0c1726"
+cursor = "#8fd3ff"
+# ANSI 0-7, rồi 8-15 (bản sáng)
+normal = ["#13233a", "#e5534b", "#6cc070", "#e8c46a", "#4da3f0", "#b58cf0", "#4fd1d9", "#c9d7e6"]
+bright = ["#3a5270", "#ff7b72", "#8edc8f", "#f5d98b", "#8fd3ff", "#d0b3ff", "#8be9f0", "#f4f9ff"]
+
+[shape]
+radius = 8                # bo góc cửa sổ (px)
+border = 4                # độ dày viền kính (px)
+blur_size = 6
+blur_passes = 3

@@ -1,0 +1,161 @@
+#!/bin/sh
+# glass-doctor: kiểm tra máy đã sẵn sàng chạy phiên Glass chưa.
+# Chỉ đọc, không sửa gì. Mã thoát khác 0 nếu có lỗi chặn.
+
+set -u
+
+datadir=${GLASS_DATADIR:-@GLASS_DATADIR@}
+config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+min_hyprland=0.56.0
+
+errors=0
+warnings=0
+
+if [ -t 1 ]; then
+    c_ok=$(printf '\033[32m') c_warn=$(printf '\033[33m') c_err=$(printf '\033[31m') c_off=$(printf '\033[0m')
+else
+    c_ok='' c_warn='' c_err='' c_off=''
+fi
+
+section() { printf '\n%s\n' "$*"; }
+ok() { printf '  %s✓%s %s\n' "$c_ok" "$c_off" "$*"; }
+warn() {
+    printf '  %s!%s %s\n' "$c_warn" "$c_off" "$*"
+    warnings=$((warnings + 1))
+}
+fail() {
+    printf '  %s✗%s %s\n' "$c_err" "$c_off" "$*"
+    errors=$((errors + 1))
+}
+note() { printf '      %s\n' "$*"; }
+
+has() { command -v "$1" >/dev/null 2>&1; }
+installed() { has pacman && pacman -Qq "$1" >/dev/null 2>&1; }
+
+# version_ge A B: A >= B
+version_ge() {
+    [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]
+}
+
+section "Hệ thống"
+if [ -r /etc/os-release ]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    if [ "${ID:-}" = cachyos ]; then
+        ok "CachyOS"
+    else
+        warn "Distro: ${PRETTY_NAME:-không rõ}. Glass được tối ưu cho CachyOS; Arch thường vẫn chạy được."
+    fi
+fi
+
+section "Chương trình cần có"
+for cmd in Hyprland hyprctl hyprlock hypridle hyprpaper kitty wpctl brightnessctl \
+    playerctl grim slurp wl-copy loginctl dbus-update-activation-environment; do
+    if has "$cmd"; then ok "$cmd"; else fail "thiếu $cmd"; fi
+done
+if has start-hyprland; then ok "start-hyprland"; else warn "thiếu start-hyprland, sẽ chạy Hyprland trực tiếp (không có chế độ khôi phục khi crash)"; fi
+if has hyprshutdown; then ok "hyprshutdown"; else warn "thiếu hyprshutdown: đăng xuất sẽ kill app thay vì để app tự đóng"; fi
+if has hyprlauncher; then ok "hyprlauncher"; else warn "thiếu hyprlauncher: SUPER + R chưa có gì để mở (start menu có ở giai đoạn 3)"; fi
+if systemctl --user cat hyprpolkitagent.service >/dev/null 2>&1; then
+    ok "hyprpolkitagent"
+else
+    fail "thiếu hyprpolkitagent: app cần quyền quản trị sẽ không hỏi được mật khẩu"
+fi
+
+section "Phiên bản Hyprland"
+if has Hyprland; then
+    ver=$(Hyprland --version 2>/dev/null | sed -n 's/^Hyprland \([0-9][0-9.]*\).*/\1/p' | head -n1)
+    if [ -z "$ver" ]; then
+        warn "không đọc được phiên bản Hyprland"
+    elif version_ge "$ver" "$min_hyprland"; then
+        ok "Hyprland $ver"
+    else
+        fail "Hyprland $ver quá cũ, cần >= $min_hyprland (config viết bằng Lua)"
+    fi
+fi
+
+section "Config của bạn"
+for f in glass/hyprland.lua glass/hyprlock.conf glass/hypridle.conf glass/hyprpaper.conf kitty/kitty.conf; do
+    path=$config_home/$f
+    if [ ! -e "$path" ]; then
+        warn "chưa có $path (chạy glass-setup)"
+    elif grep -qF "$datadir/" "$path"; then
+        ok "$path"
+    else
+        warn "$path không nạp mặc định của Glass"
+    fi
+done
+
+section "Dịch vụ"
+for unit in hypridle.service hyprpaper.service; do
+    if [ "$(systemctl --user is-enabled "$unit" 2>/dev/null)" = enabled ]; then
+        warn "$unit đang bật toàn cục, sẽ chạy trùng với dịch vụ của Glass"
+        note "tắt bằng: systemctl --user disable $unit"
+    fi
+done
+if [ "$(systemctl is-enabled sddm.service 2>/dev/null)" = enabled ]; then
+    ok "sddm.service đang bật"
+else
+    warn "sddm.service chưa bật (sudo systemctl enable sddm)"
+fi
+
+section "Gói có thể xung đột"
+for pkg in cachyos-hypr-noctalia cachyos-hyprland-settings; do
+    if installed "$pkg"; then
+        warn "$pkg đang cài: phiên đó vẫn dùng được song song với Glass"
+        note "nhưng đừng bật dịch vụ của nó ở mức toàn cục, kẻo chạy lẫn vào phiên Glass"
+    fi
+done
+if installed xdg-desktop-portal-wlr; then
+    warn "xdg-desktop-portal-wlr đang cài, có thể giành quyền chia sẻ màn hình với xdg-desktop-portal-hyprland"
+fi
+
+section "Portal"
+portals=/usr/share/xdg-desktop-portal/portals
+for p in hyprland gtk gnome-keyring; do
+    if [ -e "$portals/$p.portal" ]; then ok "portal $p"; else fail "thiếu portal $p"; fi
+done
+
+section "Màn hình đăng nhập (SDDM)"
+# SDDM đọc /usr/lib/sddm/sddm.conf.d, rồi /etc/sddm.conf.d, rồi /etc/sddm.conf;
+# giá trị đọc sau cùng thắng.
+display_server=x11
+display_server_from="mặc định của SDDM"
+for f in /usr/lib/sddm/sddm.conf.d/*.conf /etc/sddm.conf.d/*.conf /etc/sddm.conf; do
+    [ -r "$f" ] || continue
+    v=$(sed -n 's/^[[:space:]]*DisplayServer[[:space:]]*=[[:space:]]*\([a-z0-9-]*\).*/\1/p' "$f" | tail -n1)
+    if [ -n "$v" ]; then
+        display_server=$v
+        display_server_from=$f
+    fi
+done
+if [ "$display_server" = wayland ]; then
+    ok "greeter chạy Wayland ($display_server_from)"
+    if has weston; then ok "weston"; else fail "thiếu weston, greeter Wayland sẽ không lên được"; fi
+else
+    warn "greeter đang chạy $display_server, đặt bởi $display_server_from"
+fi
+
+section "Keyring"
+if has gnome-keyring-daemon; then ok "gnome-keyring"; else fail "thiếu gnome-keyring"; fi
+if grep -qs pam_gnome_keyring /etc/pam.d/sddm; then
+    ok "SDDM tự mở khoá keyring khi đăng nhập"
+else
+    warn "/etc/pam.d/sddm không có pam_gnome_keyring: keyring sẽ hỏi mật khẩu riêng"
+fi
+
+if [ -e /proc/driver/nvidia/version ]; then
+    section "NVIDIA"
+    warn "đang dùng driver NVIDIA"
+    note "nếu máy chỉ có card NVIDIA, thêm vào ~/.config/glass/hyprland.lua:"
+    note "  hl.env(\"LIBVA_DRIVER_NAME\", \"nvidia\")"
+    note "  hl.env(\"__GLX_VENDOR_LIBRARY_NAME\", \"nvidia\")"
+    note "đăng xuất bị màn hình đen: xem mục NVIDIA trong docs/testing.md"
+fi
+
+printf '\n'
+if [ "$errors" -gt 0 ]; then
+    printf '%s%d lỗi%s, %d cảnh báo.\n' "$c_err" "$errors" "$c_off" "$warnings"
+    exit 1
+fi
+printf '%sKhông có lỗi%s, %d cảnh báo.\n' "$c_ok" "$c_off" "$warnings"
