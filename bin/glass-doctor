@@ -86,6 +86,24 @@ for f in glass/hyprland.lua glass/hyprlock.conf glass/hypridle.conf glass/hyprpa
     fi
 done
 
+section "glassd (settings)"
+if has glassd && has glassctl; then
+    ok "glassd, glassctl"
+    if glassctl get version >/dev/null 2>&1; then
+        ok "glassd đang chạy, palette: $(glassctl get appearance.palette 2>/dev/null)"
+    else
+        warn "glassd chưa chạy (bình thường nếu chưa vào phiên Glass)"
+        note "xem lỗi: journalctl --user -b -u glassd"
+    fi
+else
+    fail "thiếu glassd/glassctl (gói glassd)"
+fi
+if has hyprsunset; then ok "hyprsunset (night light)"; else warn "thiếu hyprsunset: night_light sẽ không chạy"; fi
+if [ -n "${XDG_STATE_HOME-}" ] && [ "$XDG_STATE_HOME" != "$HOME/.local/state" ]; then
+    warn "XDG_STATE_HOME=$XDG_STATE_HOME: hyprlock, hypridle, hyprpaper, kitty của Glass đọc theme ở ~/.local/state/glass"
+    note "glassd ghi vào $XDG_STATE_HOME/glass nên các app đó sẽ không thấy thay đổi"
+fi
+
 section "Dịch vụ"
 for unit in hypridle.service hyprpaper.service; do
     if [ "$(systemctl --user is-enabled "$unit" 2>/dev/null)" = enabled ]; then

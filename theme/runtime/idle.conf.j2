@@ -1,0 +1,36 @@
+# Sinh bởi glassd từ settings.toml, mục [idle]. Đừng sửa: file sẽ bị ghi đè.
+# Bước nào đặt 0 thì không có listener.
+{% if settings.idle.dim %}
+
+# Giảm độ sáng
+listener {
+    timeout = {{ settings.idle.dim }}
+    on-timeout = brightnessctl -s set 10
+    on-resume = brightnessctl -r
+}
+{% endif %}
+{% if settings.idle.lock %}
+
+# Khoá máy
+listener {
+    timeout = {{ settings.idle.lock }}
+    on-timeout = loginctl lock-session
+}
+{% endif %}
+{% if settings.idle.screen_off %}
+
+# Tắt màn hình
+listener {
+    timeout = {{ settings.idle.screen_off }}
+    on-timeout = hyprctl dispatch 'hl.dsp.dpms({ action = "disable" })'
+    on-resume = hyprctl dispatch 'hl.dsp.dpms({ action = "enable" })' && brightnessctl -r
+}
+{% endif %}
+{% if settings.idle.suspend %}
+
+# Ngủ
+listener {
+    timeout = {{ settings.idle.suspend }}
+    on-timeout = systemctl suspend
+}
+{% endif %}

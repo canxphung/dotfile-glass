@@ -20,7 +20,8 @@ fail() {
     exit 1
 }
 
-make -s install PREFIX="$prefix" SYSCONFDIR="$tmp/etc" >/dev/null
+# Chỉ phần không cần build Rust; glassd có test riêng (glassd-smoke.sh).
+make -s install-session install-sddm PREFIX="$prefix" SYSCONFDIR="$tmp/etc" >/dev/null
 
 # 1. Không còn placeholder nào.
 if grep -rl '@GLASS_DATADIR@' "$prefix" "$tmp/etc"; then
@@ -51,6 +52,10 @@ for f in glass/hyprland.lua glass/hyprlock.conf glass/hypridle.conf glass/hyprpa
     grep -qF "$glassdir/" "$home/.config/$f" || fail "$f không nạp mặc định"
 done
 grep -q '^DefaultIM=bamboo$' "$home/.config/fcitx5/profile" || fail "profile fcitx5 không đặt Bamboo"
+for f in idle.conf wallpaper.conf nightlight.conf theme/hyprland.lua theme/hyprlock.conf theme/kitty.conf theme/shell.json; do
+    [ -f "$home/.local/state/glass/$f" ] || fail "glass-setup không chép file state $f"
+done
+grep -qF "$glassdir/wallpapers/aero-sky.jpg" "$home/.local/state/glass/wallpaper.conf" || fail "wallpaper.conf chưa thay đường dẫn"
 grep -q -- '--enable-wayland-ime' "$home/.config/electron-flags.conf" || fail "thiếu cờ IME cho Electron"
 
 # 4. Chạy lại không đổi gì, kể cả file người dùng đã sửa.

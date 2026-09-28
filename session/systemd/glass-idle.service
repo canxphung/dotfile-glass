@@ -2,7 +2,7 @@
 Description=Glass: xử lý khi máy rảnh (hypridle)
 Documentation=https://wiki.hypr.land/Hypr-Ecosystem/hypridle/
 PartOf=graphical-session.target
-After=graphical-session.target
+After=graphical-session.target glassd.service
 ConditionEnvironment=WAYLAND_DISPLAY
 
 [Service]

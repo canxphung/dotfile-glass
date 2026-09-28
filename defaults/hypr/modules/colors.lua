@@ -1,8 +1,8 @@
 -- Màu và thông số kính cho Hyprland.
 --
--- Giai đoạn 1: giá trị chép tay từ theme/palettes/sky.toml.
--- Từ giai đoạn 2, glassd render file theme runtime; nếu file đó tồn tại
--- thì dùng nó thay cho bảng mặc định bên dưới.
+-- glassd sinh ~/.local/state/glass/theme/hyprland.lua theo palette đang
+-- chọn (appearance.palette) rồi chạy `hyprctl reload`. Bảng bên dưới chỉ
+-- là dự phòng khi file đó chưa có hoặc lỗi; giá trị bằng palette "sky".
 
 local state_home = os.getenv("XDG_STATE_HOME") or ((os.getenv("HOME") or "") .. "/.local/state")
 local runtime = state_home .. "/glass/theme/hyprland.lua"
@@ -32,4 +32,6 @@ return {
 
     shadow          = "rgba(0a1a2e70)",
     shadow_inactive = "rgba(0a1a2e38)",
+
+    background = "rgba(0c1726ff)",
 }

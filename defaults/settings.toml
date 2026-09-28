@@ -1,0 +1,40 @@
+# Cài đặt của Glass (~/.config/glass/settings.toml).
+#
+# glassd theo dõi file này: sửa và lưu là có hiệu lực ngay, không cần
+# khởi động lại. Cũng đổi được bằng lệnh, ví dụ:
+#   glassctl set appearance.palette twilight
+#   glassctl get
+# Dòng nào bị xoá sẽ dùng giá trị mặc định. Comment của bạn được giữ nguyên
+# khi glassctl sửa file.
+
+version = 1
+
+[appearance]
+# Palette màu Aero. Xem danh sách: glassctl palettes
+palette = "sky"
+# Chế độ màu báo cho app GTK, Qt, Chromium: "dark", "light" hoặc "default".
+color_scheme = "dark"
+# Font giao diện và font chữ đều: tên font rồi cỡ chữ.
+font = "Noto Sans 10"
+monospace_font = "JetBrainsMono Nerd Font 11"
+
+[wallpaper]
+# Đường dẫn hình nền, dùng được "~/". Để trống là hình mặc định của Glass.
+path = ""
+# Cách đặt hình: "cover", "contain", "tile" hoặc "fill".
+fit = "cover"
+
+[idle]
+# Số giây máy rảnh trước mỗi bước. Đặt 0 để bỏ bước đó.
+dim = 150
+lock = 300
+screen_off = 330
+suspend = 1800
+
+[night_light]
+# Lọc ánh sáng xanh theo giờ (hyprsunset).
+enabled = false
+# Nhiệt độ màu khi bật (1000..6500 K); càng thấp càng ấm.
+temperature = 4500
+start = "20:00"
+end = "06:30"

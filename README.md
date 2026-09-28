@@ -6,7 +6,7 @@ Glass không phải một bộ dotfile để chép tay: nó được đóng gói
 
 ## Trạng thái
 
-**Giai đoạn 1: nền phiên.** Đăng nhập được vào phiên Glass với:
+**Xong giai đoạn 2** trên 5. Đăng nhập được vào phiên Glass với:
 
 - Hyprland (config Lua) có khung cửa sổ kính kiểu Aero: viền gradient, vệt sáng mép trong, bóng đổ, blur
 - Màn hình khoá (hyprlock), xử lý khi rảnh (hypridle), hình nền (hyprpaper)
@@ -14,6 +14,7 @@ Glass không phải một bộ dotfile để chép tay: nó được đóng gói
 - SDDM chạy greeter trên Wayland
 - Kitty trong suốt theo palette Aero Sky
 - Gõ tiếng Việt bằng fcitx5 + Bamboo (Telex), bật/tắt bằng `CTRL + Space`
+- **glassd**: daemon settings viết bằng Rust. Đổi palette (Aero Sky, Aero Twilight), hình nền, font, chế độ sáng/tối, thời gian khoá máy, night light bằng `glassctl` hoặc sửa `settings.toml`; mọi thứ đổi ngay, không cần đăng xuất
 
 Chưa có shell (taskbar, start menu, thông báo, control center). Xem lộ trình trong [docs/architecture.md](docs/architecture.md).
 
@@ -34,13 +35,25 @@ Trước khi dùng hằng ngày, nên chạy qua [docs/testing.md](docs/testing.
 
 ## Tuỳ chỉnh
 
+Phần lớn chỉnh qua `glassctl` (hoặc sửa `~/.config/glass/settings.toml`, glassd tự đọc lại):
+
+```sh
+glassctl get                        # xem mọi settings
+glassctl palette twilight           # đổi palette
+glassctl wallpaper ~/Pictures/a.jpg # đổi hình nền
+glassctl set idle.lock 600          # khoá máy sau 10 phút
+glassctl set night_light.enabled true
+```
+
+Danh sách đầy đủ và API cho app khác: [docs/ipc.md](docs/ipc.md).
+
 Config chia 3 lớp:
 
 | Lớp | Vị trí | Ai sửa |
 | --- | --- | --- |
 | Mặc định | `/usr/share/glass/` | Gói; cập nhật theo phiên bản |
 | Của bạn | `~/.config/glass/`, `~/.config/kitty/kitty.conf`, `~/.config/fcitx5/profile`, cờ Chromium/Electron | Bạn; Glass tạo một lần, không bao giờ ghi đè |
-| Sinh ra | `~/.local/state/glass/` | glassd (từ giai đoạn 2); không sửa tay |
+| Sinh ra | `~/.local/state/glass/` | glassd; không sửa tay |
 
 Các file trong `~/.config/glass/` và `kitty.conf` nạp mặc định trước, rồi mới tới phần bạn viết, nên chỉ cần ghi những gì muốn khác. Profile fcitx5 và cờ Chromium/Electron chỉ là giá trị ban đầu, sau đó app tự quản. Ví dụ trong `~/.config/glass/hyprland.lua`:
 
@@ -56,10 +69,15 @@ Phím tắt: [docs/keybinds.md](docs/keybinds.md).
 ## Phát triển
 
 ```sh
-make check    # shellcheck, luac, desktop-file-validate, systemd-analyze, test
+make          # build glassd, glassctl
+make check    # shellcheck, luac, desktop-file-validate, systemd-analyze, cargo fmt/clippy/test, test tích hợp
 ```
 
-Test chạy thử toàn bộ config Lua với một `hl` giả để bắt lỗi runtime và phím tắt trùng. Phần hiển thị thật chỉ kiểm được trên máy có Hyprland.
+- Test Lua chạy thử toàn bộ config Hyprland với một `hl` giả để bắt lỗi runtime và phím tắt trùng.
+- Test glassd chạy daemon thật trên một session bus riêng, đổi settings qua `glassctl`, socket và sửa tay file, rồi kiểm tra file sinh ra và lệnh được gọi (gsettings, hyprctl, systemctl thay bằng stub).
+- Phần hiển thị thật chỉ kiểm được trên máy có Hyprland: [docs/testing.md](docs/testing.md).
+
+Sửa template trong `theme/runtime/` thì chạy `GLASS_UPDATE_STATE=1 cargo test --manifest-path daemon/Cargo.toml` để cập nhật bản khởi tạo trong `defaults/state/`.
 
 ## Giấy phép
 

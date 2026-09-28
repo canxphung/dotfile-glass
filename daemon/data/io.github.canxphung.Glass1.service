@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=io.github.canxphung.Glass1
+Exec=/bin/false
+SystemdService=glassd.service

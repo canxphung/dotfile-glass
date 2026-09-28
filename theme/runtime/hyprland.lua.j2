@@ -1,0 +1,20 @@
+-- Sinh bởi glassd từ palette "{{ palette.name }}". Đừng sửa: file sẽ bị ghi đè.
+-- Cấu trúc khớp bảng dự phòng trong hypr/modules/colors.lua của Glass.
+
+return {
+    radius      = {{ palette.shape.radius }},
+    border      = {{ palette.shape.border }},
+    blur_size   = {{ palette.shape.blur_size }},
+    blur_passes = {{ palette.shape.blur_passes }},
+
+    border_active   = { colors = { "{{ palette.glass.tint_light | rgba('dd') }}", "{{ palette.glass.tint | rgba('bb') }}", "{{ palette.glass.tint_deep | rgba('cc') }}" }, angle = 90 },
+    border_inactive = { colors = { "{{ palette.glass.inactive_light | rgba('66') }}", "{{ palette.glass.inactive_deep | rgba('55') }}" }, angle = 90 },
+
+    glow          = "{{ palette.glass.highlight | rgba('26') }}",
+    glow_inactive = "{{ palette.glass.highlight | rgba('0f') }}",
+
+    shadow          = "{{ palette.glass.shadow | rgba('70') }}",
+    shadow_inactive = "{{ palette.glass.shadow | rgba('38') }}",
+
+    background = "{{ palette.surface.dark | rgba('ff') }}",
+}

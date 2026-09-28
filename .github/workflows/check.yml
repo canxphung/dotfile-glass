@@ -13,7 +13,20 @@ jobs:
       - name: Cài công cụ kiểm tra
         run: |
           sudo apt-get update
-          sudo apt-get install -y shellcheck lua5.4 desktop-file-utils
+          sudo apt-get install -y shellcheck lua5.4 desktop-file-utils dbus
+
+      - name: Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            daemon/target
+          key: cargo-${{ hashFiles('daemon/Cargo.lock') }}
 
       - name: make check
         run: make check LUA=lua5.4 LUAC=luac5.4
