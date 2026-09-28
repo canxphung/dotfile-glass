@@ -2,6 +2,8 @@
 # Chạy glassd thật trên một session bus riêng, với HOME tạm. Các lệnh
 # gsettings, hyprctl, systemctl, pkill được thay bằng stub ghi lại lời gọi,
 # để kiểm tra glassd áp settings ra hệ thống đúng lúc, đúng lệnh.
+# Agent Wi-Fi/Bluetooth được test với NetworkManager và BlueZ giả (cần python
+# dbus-next; thiếu thì bỏ qua, trừ khi đặt GLASS_SMOKE_REQUIRED=1 như CI).
 # GLASS_SMOKE_LOG=1 để in log của glassd khi xong.
 
 set -eu
@@ -18,9 +20,9 @@ target=${CARGO_TARGET_DIR:-$repo/daemon/target}/debug
 tmp=$(mktemp -d)
 glassd_pid=
 cleanup() {
-    if [ -n "$glassd_pid" ]; then
-        kill "$glassd_pid" 2>/dev/null || true
-    fi
+    for pid in $glassd_pid $(cat "$tmp"/*.pid 2>/dev/null); do
+        kill "$pid" 2>/dev/null || true
+    done
     rm -rf "$tmp"
 }
 trap cleanup EXIT
@@ -51,6 +53,11 @@ export HYPRLAND_INSTANCE_SIGNATURE=test
 export PATH="$tmp/stubs:$PATH"
 mkdir -p "$HOME" "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
+
+# System bus riêng: agent Wi-Fi/Bluetooth của glassd đăng ký với
+# NetworkManager và BlueZ giả ở bước 10, không đụng tới bus thật của máy.
+DBUS_SYSTEM_BUS_ADDRESS=$(dbus-daemon --session --fork --print-address=1 --print-pid=3 3>"$tmp/sysbus.pid" 2>/dev/null)
+export DBUS_SYSTEM_BUS_ADDRESS
 
 state=$XDG_STATE_HOME/glass
 settings=$XDG_CONFIG_HOME/glass/settings.toml
@@ -182,7 +189,138 @@ sock.connect(sys.argv[1])
 assert json.loads(sock.makefile().readline())["event"] == "hello"
 EOF
 
-# 10. Dừng gọn: xoá socket.
+# 10. Agent Wi-Fi/Bluetooth: NetworkManager và BlueZ giả lên sau glassd,
+#     glassd tự đăng ký; yêu cầu mật khẩu/mã ghép nối đi qua socket tới
+#     client nhận vai hiện hộp thoại, câu trả lời quay về D-Bus.
+if python3 -c 'import dbus_next' 2>/dev/null; then
+    python3 tests/fake-networkmanager.py "$tmp/nm.log" >"$tmp/nm.out" 2>&1 &
+    echo $! >"$tmp/nm.pid"
+    python3 tests/fake-bluez.py "$tmp/bluez.log" >"$tmp/bluez.out" 2>&1 &
+    echo $! >"$tmp/bluez.pid"
+    # shellcheck disable=SC2016 # eval trong wait_for mới mở rộng biến
+    wait_for 'grep -qx "agent io.github.canxphung.glass" "$tmp/nm.log" 2>/dev/null' "đăng ký agent với NetworkManager"
+    # shellcheck disable=SC2016
+    wait_for 'grep -qx "default agent" "$tmp/bluez.log" 2>/dev/null' "đăng ký agent với BlueZ"
+    grep -qx "agent KeyboardDisplay" "$tmp/bluez.log" || fail "agent BlueZ sai capability"
+
+    python3 - "$XDG_RUNTIME_DIR/glass/glassd.sock" "$tmp/nm.log" "$tmp/bluez.log" <<'EOF' || fail "agent không đúng luồng (nm: $(tr '\n' ';' <"$tmp/nm.log") bluez: $(tr '\n' ';' <"$tmp/bluez.log"))"
+import asyncio, json, os, sys
+from dbus_next import Message, MessageType
+from dbus_next.aio import MessageBus
+
+sock_path, nm_log, bluez_log = sys.argv[1:4]
+NM = "org.freedesktop.NetworkManager"
+NM_PATH = "/org/freedesktop/NetworkManager"
+HCI = "/org/bluez/hci0"
+
+
+def logged(path, line):
+    with open(path, encoding="utf-8") as f:
+        return line in f.read().splitlines()
+
+
+async def until_logged(path, line):
+    for _ in range(50):
+        if logged(path, line):
+            return
+        await asyncio.sleep(0.1)
+    raise AssertionError(f"chưa thấy {line!r} trong {path}")
+
+
+async def main():
+    reader, writer = await asyncio.open_unix_connection(sock_path)
+    bus = await MessageBus(bus_address=os.environ["DBUS_SYSTEM_BUS_ADDRESS"]).connect()
+    serial = 0
+
+    async def read(match):
+        while True:
+            msg = json.loads(await asyncio.wait_for(reader.readline(), 10))
+            if match(msg):
+                return msg
+
+    async def request(method, **args):
+        nonlocal serial
+        serial += 1
+        writer.write((json.dumps({"id": serial, "method": method, **args}) + "\n").encode())
+        reply = await read(lambda m, id=serial: m.get("id") == id)
+        assert reply["ok"], reply
+        return reply["result"]
+
+    async def prompt():
+        return await read(lambda m: m.get("event") == "prompt")
+
+    async def call(dest, path, iface, member, signature="", body=()):
+        msg = Message(destination=dest, path=path, interface=iface, member=member, signature=signature, body=list(body))
+        return await bus.call(msg)
+
+    def connect_wifi(ap):
+        return call(NM, NM_PATH, NM, "AddAndActivateConnection", "a{sa{sv}}oo", [{}, NM_PATH + "/Devices/1", f"{NM_PATH}/AccessPoint/{ap}"])
+
+    await request("handle_prompts")
+
+    # Wi-Fi: hỏi mật khẩu; sai thì NetworkManager hỏi lại với cờ retry.
+    assert (await connect_wifi(1)).message_type == MessageType.METHOD_RETURN
+    p = await prompt()
+    assert p["kind"] == "wifi_secrets" and p["wait"], p
+    assert (p["ssid"], p["security"], p["fields"], p["retry"]) == ("Nhà Mình", "psk", ["psk"], False), p
+    assert await request("prompt_reply", prompt=p["id"], value={"psk": "sai-roi"}) is True
+    p = await prompt()
+    assert p["ssid"] == "Nhà Mình" and p["retry"] is True, p
+    await request("prompt_reply", prompt=p["id"], value={"psk": "matkhau123"})
+    await until_logged(nm_log, "connected Nhà Mình")
+    assert logged(nm_log, "secrets Nhà Mình flags=3"), "lần hỏi lại thiếu cờ REQUEST_NEW"
+
+    # Huỷ hộp thoại: NetworkManager nhận UserCanceled, kết nối thất bại vì
+    # thiếu mật khẩu.
+    await connect_wifi(3)
+    p = await prompt()
+    assert p["ssid"] == "Hàng Xóm", p
+    await request("prompt_cancel", prompt=p["id"])
+    await until_logged(nm_log, "failed Hàng Xóm reason=7")
+    assert logged(nm_log, f"secrets Hàng Xóm error {NM}.SecretAgent.UserCanceled")
+
+    # Bluetooth: tìm thiết bị, ghép nối có xác nhận mã.
+    await call("org.bluez", HCI, "org.bluez.Adapter1", "StartDiscovery")
+    loa = HCI + "/dev_00_1A_7D_DA_71_02"
+    phim = HCI + "/dev_00_1A_7D_DA_71_03"
+    await asyncio.sleep(0.6)
+    pair = asyncio.ensure_future(call("org.bluez", loa, "org.bluez.Device1", "Pair"))
+    p = await prompt()
+    assert p["kind"] == "bluetooth" and p["wait"], p
+    assert (p["action"], p["name"], p["code"], p["device"]) == ("confirm", "Loa Phòng Khách", "123456", loa), p
+    await request("prompt_reply", prompt=p["id"], value={"accept": "true"})
+    assert (await pair).message_type == MessageType.METHOD_RETURN
+    assert logged(bluez_log, "paired Loa Phòng Khách")
+
+    # Hiện mã để gõ trên bàn phím: hộp thoại chỉ để xem.
+    pair = asyncio.ensure_future(call("org.bluez", phim, "org.bluez.Device1", "Pair"))
+    p = await prompt()
+    assert (p["action"], p["code"], p["wait"]) == ("display_passkey", "654321", False), p
+    assert (await pair).message_type == MessageType.METHOD_RETURN
+    assert await request("prompt_cancel", prompt=p["id"]) is True
+
+    # Từ chối: BlueZ nhận Rejected.
+    await call("org.bluez", HCI, "org.bluez.Adapter1", "RemoveDevice", "o", [loa])
+    await call("org.bluez", HCI, "org.bluez.Adapter1", "StopDiscovery")
+    await call("org.bluez", HCI, "org.bluez.Adapter1", "StartDiscovery")
+    await asyncio.sleep(0.6)
+    pair = asyncio.ensure_future(call("org.bluez", loa, "org.bluez.Device1", "Pair"))
+    p = await prompt()
+    await request("prompt_reply", prompt=p["id"], value={"accept": "false"})
+    reply = await pair
+    assert reply.message_type == MessageType.ERROR, reply.body
+    assert logged(bluez_log, "pair Loa Phòng Khách org.bluez.Error.Rejected")
+
+
+asyncio.run(main())
+EOF
+elif [ -n "${GLASS_SMOKE_REQUIRED-}" ]; then
+    fail "thiếu python dbus-next để test agent Wi-Fi/Bluetooth"
+else
+    echo "glassd: bỏ qua test agent Wi-Fi/Bluetooth (thiếu python dbus-next)"
+fi
+
+# 11. Dừng gọn: xoá socket.
 kill "$glassd_pid"
 wait "$glassd_pid" 2>/dev/null || true
 glassd_pid=
