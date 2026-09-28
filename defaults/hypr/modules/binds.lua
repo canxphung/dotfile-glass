@@ -12,7 +12,11 @@ end
 
 ---- Ứng dụng ----
 bind(mod .. " + Return", hl.dsp.exec_cmd(s.terminal), "Mở terminal")
-bind(mod .. " + R",      hl.dsp.exec_cmd(s.launcher), "Mở launcher")
+
+-- Start menu: nhấn rồi thả SUPER (không kèm phím nào khác), như Windows.
+-- Dùng SUPER + phím khác thì Hyprland không mở menu.
+bind(mod .. " + Super_L", hl.dsp.exec_cmd("glass-shell startmenu toggle"), "Mở start menu", { release = true })
+bind(mod .. " + R",       hl.dsp.exec_cmd("glass-shell startmenu toggle"), "Mở start menu (tìm app)")
 
 ---- Cửa sổ ----
 bind(mod .. " + Q", hl.dsp.window.close(), "Đóng cửa sổ")
@@ -54,8 +58,10 @@ bind(mod .. " + grave",         hl.dsp.workspace.toggle_special("scratch"),     
 bind(mod .. " + SHIFT + grave", hl.dsp.window.move({ workspace = "special:scratch" }), "Dời cửa sổ vào scratchpad")
 
 ---- Phiên ----
-bind(mod .. " + L",         hl.dsp.exec_cmd("loginctl lock-session"), "Khoá máy")
-bind(mod .. " + SHIFT + E", hl.dsp.exec_cmd("glass-session logout"),  "Đăng xuất")
+bind(mod .. " + L",           hl.dsp.exec_cmd("loginctl lock-session"),      "Khoá máy")
+bind(mod .. " + SHIFT + E",   hl.dsp.exec_cmd("glass-shell powermenu toggle"), "Khoá, đăng xuất, tắt máy...")
+bind("CTRL + ALT + Delete",   hl.dsp.exec_cmd("glass-shell powermenu toggle"), "Khoá, đăng xuất, tắt máy...")
+bind(mod .. " + N",           hl.dsp.exec_cmd("glass-shell notifications toggleDnd"), "Bật/tắt không làm phiền")
 
 ---- Chụp màn hình ----
 bind("Print",               hl.dsp.exec_cmd("glass-screenshot region"), "Chụp vùng")
@@ -70,8 +76,9 @@ bind("XF86AudioRaiseVolume",  hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AU
 bind("XF86AudioLowerVolume",  hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"),      "Giảm âm lượng", held)
 bind("XF86AudioMute",         hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),     "Tắt tiếng", once)
 bind("XF86AudioMicMute",      hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"),   "Tắt mic", once)
-bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%+"),                  "Tăng độ sáng", held)
-bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%-"),                  "Giảm độ sáng", held)
+-- Âm lượng tự hiện OSD (shell theo dõi PipeWire); độ sáng thì báo shell.
+bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%+ && glass-shell osd brightness"), "Tăng độ sáng", held)
+bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%- && glass-shell osd brightness"), "Giảm độ sáng", held)
 bind("XF86AudioPlay",         hl.dsp.exec_cmd("playerctl play-pause"),                           "Phát/dừng", once)
 bind("XF86AudioPause",        hl.dsp.exec_cmd("playerctl play-pause"),                           "Phát/dừng", once)
 bind("XF86AudioNext",         hl.dsp.exec_cmd("playerctl next"),                                 "Bài kế", once)

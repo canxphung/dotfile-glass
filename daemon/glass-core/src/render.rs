@@ -54,6 +54,8 @@ pub struct Context<'a> {
     /// Đường dẫn hình nền tuyệt đối (đã xử lý chuỗi rỗng và "~/").
     pub wallpaper: String,
     pub font_family: String,
+    /// Cỡ font giao diện (pt), mặc định 10.
+    pub font_size: f32,
     pub monospace_family: String,
     pub monospace_size: String,
 }
@@ -76,13 +78,14 @@ impl<'a> Context<'a> {
         } else {
             paths.expand_home(settings.wallpaper.path.trim())
         };
-        let (font_family, _) = split_font(&settings.appearance.font);
+        let (font_family, font_size) = split_font(&settings.appearance.font);
         let (monospace_family, monospace_size) = split_font(&settings.appearance.monospace_font);
         Self {
             palette,
             settings,
             wallpaper: wallpaper.to_string_lossy().into_owned(),
             font_family,
+            font_size: font_size.and_then(|s| s.parse().ok()).unwrap_or(10.0),
             monospace_family,
             monospace_size: monospace_size.unwrap_or_else(|| "11".into()),
         }
@@ -120,6 +123,7 @@ struct ShellTheme<'a> {
     palette: &'a Palette,
     color_scheme: crate::settings::ColorScheme,
     font_family: &'a str,
+    font_size: f32,
     monospace_family: &'a str,
 }
 
@@ -159,6 +163,7 @@ impl Renderer {
             palette: ctx.palette,
             color_scheme: ctx.settings.appearance.color_scheme,
             font_family: &ctx.font_family,
+            font_size: ctx.font_size,
             monospace_family: &ctx.monospace_family,
         };
         let mut json = serde_json::to_string_pretty(&shell).expect("theme luôn chuyển được sang JSON");
@@ -290,6 +295,14 @@ mod tests {
         let json: serde_json::Value = serde_json::from_str(find(&out, THEME_SHELL)).unwrap();
         assert_eq!(json["palette"]["glass"]["tint"], "#74b8fc");
         assert_eq!(json["color_scheme"], "dark");
+        assert_eq!(json["font_family"], "Noto Sans");
+        assert_eq!(json["font_size"], 10.0);
+
+        let doc = SettingsDoc::parse("[appearance]\nfont = \"Inter 11.5\"\n").unwrap();
+        let out = render(doc.settings(), &palette("sky"));
+        let json: serde_json::Value = serde_json::from_str(find(&out, THEME_SHELL)).unwrap();
+        assert_eq!(json["font_family"], "Inter");
+        assert_eq!(json["font_size"], 11.5);
     }
 
     #[test]

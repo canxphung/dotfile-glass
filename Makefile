@@ -5,6 +5,8 @@
 #   make check                              kiểm tra tĩnh + test (cần shellcheck, lua, luac,
 #                                           desktop-file-validate, systemd-analyze, cargo,
 #                                           dbus-run-session, python3)
+#   make test-shell                         chạy thử shell QML trên sway headless (cần
+#                                           quickshell, sway, wtype, notify-send, grim)
 #   make install DESTDIR=/tmp/root          cài thử vào thư mục tạm
 #   sudo make install                       cài thẳng vào hệ thống (nên dùng PKGBUILD)
 
@@ -31,12 +33,13 @@ BIN          = glass-session glass-setup glass-doctor glass-screenshot
 DAEMON_BIN   = glassd glassctl
 UNITS        = glass-session.target glass-idle.service glass-wallpaper.service
 DAEMON_UNITS = glassd.service glass-nightlight.service
+SHELL_UNITS  = glass-shell.service
 
 # Thay @GLASS_DATADIR@, @BINDIR@ bằng đường dẫn cài thật.
 SUBST = sed -e 's|@GLASS_DATADIR@|$(GLASSDIR)|g' -e 's|@BINDIR@|$(BINDIR)|g'
 
-.PHONY: all build install install-session install-daemon install-sddm uninstall check \
-        check-shell check-lua check-desktop check-units check-rust test wallpaper
+.PHONY: all build install install-session install-daemon install-shell install-sddm uninstall \
+        check check-shell check-lua check-desktop check-units check-rust test test-shell wallpaper
 
 all: build
 
@@ -44,7 +47,7 @@ all: build
 build:
 	GLASS_DATADIR="$(GLASSDIR)" $(CARGO) build --release $(CARGOFLAGS) --manifest-path daemon/Cargo.toml
 
-install: install-session install-daemon install-sddm
+install: install-session install-daemon install-shell install-sddm
 
 install-session:
 	install -d "$(DESTDIR)$(BINDIR)"
@@ -86,14 +89,26 @@ install-daemon:
 	install -Dm644 daemon/data/io.github.canxphung.Glass1.service \
 		"$(DESTDIR)$(DBUSSERVICEDIR)/io.github.canxphung.Glass1.service"
 
+install-shell:
+	install -d "$(DESTDIR)$(BINDIR)" "$(DESTDIR)$(USERUNITDIR)"
+	$(SUBST) bin/glass-shell > "$(DESTDIR)$(BINDIR)/glass-shell"
+	chmod 755 "$(DESTDIR)$(BINDIR)/glass-shell"
+	for f in $$(find shell -type f -name '*.qml'); do \
+		install -Dm644 "$$f" "$(DESTDIR)$(GLASSDIR)/$$f"; \
+	done
+	for u in $(SHELL_UNITS); do \
+		$(SUBST) "session/systemd/$$u" > "$(DESTDIR)$(USERUNITDIR)/$$u"; \
+		chmod 644 "$(DESTDIR)$(USERUNITDIR)/$$u"; \
+	done
+
 install-sddm:
 	install -Dm644 session/sddm/glass.conf "$(DESTDIR)$(SDDMCONFDIR)/glass.conf"
 
 uninstall:
-	for f in $(BIN) $(DAEMON_BIN); do rm -f "$(DESTDIR)$(BINDIR)/$$f"; done
+	for f in $(BIN) $(DAEMON_BIN) glass-shell; do rm -f "$(DESTDIR)$(BINDIR)/$$f"; done
 	rm -rf "$(DESTDIR)$(GLASSDIR)"
 	rm -f "$(DESTDIR)$(SESSIONDIR)/glass.desktop"
-	for u in $(UNITS) $(DAEMON_UNITS); do rm -f "$(DESTDIR)$(USERUNITDIR)/$$u"; done
+	for u in $(UNITS) $(DAEMON_UNITS) $(SHELL_UNITS); do rm -f "$(DESTDIR)$(USERUNITDIR)/$$u"; done
 	rm -f "$(DESTDIR)$(DBUSSERVICEDIR)/io.github.canxphung.Glass1.service"
 	rm -f "$(DESTDIR)$(PORTALCONFDIR)/hyprland-portals.conf"
 	rm -f "$(DESTDIR)$(SDDMCONFDIR)/glass.conf"
@@ -127,6 +142,11 @@ test:
 	./tests/install-and-setup.sh
 	LUA=$(LUA) ./tests/lua-smoke.sh
 	./tests/glassd-smoke.sh
+	./tests/shell-smoke.sh
+
+# Như trong `make test`, nhưng thiếu công cụ thì báo lỗi thay vì bỏ qua.
+test-shell:
+	GLASS_SHELL_SMOKE_REQUIRED=1 ./tests/shell-smoke.sh
 
 wallpaper:
 	python3 wallpapers/make-aero.py

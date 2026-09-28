@@ -6,8 +6,11 @@
 
 | Phím | Việc |
 | --- | --- |
+| `SUPER` (nhấn rồi thả) | Mở/đóng start menu |
+| `SUPER + R` | Mở start menu để tìm app |
 | `SUPER + Enter` | Mở terminal (kitty) |
-| `SUPER + R` | Launcher tạm (hyprlauncher), tới khi có start menu |
+
+Trong start menu: gõ để tìm (không cần dấu: "trinh duyet" ra "Trình duyệt"), `↑`/`↓` chọn, `Enter` mở, `Esc` đóng.
 
 ## Cửa sổ
 
@@ -52,7 +55,8 @@ Mặc định gõ kiểu Telex. Đổi sang VNI, bảng mã hay phím tắt khá
 | Phím | Việc |
 | --- | --- |
 | `SUPER + L` | Khoá máy |
-| `SUPER + SHIFT + E` | Đăng xuất |
+| `SUPER + SHIFT + E`, `CTRL + ALT + Delete` | Menu nguồn: khoá, đăng xuất, ngủ, khởi động lại, tắt máy (`↑`/`↓`, `Enter`, `Esc`) |
+| `SUPER + N` | Bật/tắt không làm phiền (vẫn hiện thông báo khẩn) |
 
 ## Chụp màn hình
 
@@ -65,4 +69,20 @@ Mặc định gõ kiểu Telex. Đổi sang VNI, bảng mã hay phím tắt khá
 
 ## Phím media
 
-Âm lượng, tắt tiếng, mic, độ sáng, phát/dừng, bài trước/kế. Chạy cả khi đang khoá máy.
+Âm lượng, tắt tiếng, mic, độ sáng, phát/dừng, bài trước/kế. Chạy cả khi đang khoá máy. Đổi âm lượng hay độ sáng thì hiện OSD phía trên taskbar.
+
+## Chuột trên taskbar
+
+| Chỗ | Chuột | Việc |
+| --- | --- | --- |
+| Nút Start | trái | Mở/đóng start menu |
+| Nút app | trái | Chưa chạy: mở. Một cửa sổ: đưa lên. Nhiều cửa sổ: chọn cửa sổ |
+| Nút app | giữa | Mở thêm cửa sổ mới |
+| Nút app | phải | Danh sách cửa sổ, ghim/bỏ ghim, đóng |
+| Workspace | trái / lăn | Sang workspace đó / workspace kế bên |
+| Loa | trái / lăn | Tắt/bật tiếng / chỉnh âm lượng |
+| Chuông | trái | Bật/tắt không làm phiền |
+| Đồng hồ | trái | Lịch tháng |
+| Icon khay | trái / giữa / phải | Mở app / thao tác phụ / menu của app |
+
+Nhấn rồi thả `SUPER` chỉ mở start menu khi không kèm phím nào; `SUPER + Q` và các phím tắt khác không mở menu. Riêng khi giữ `SUPER` để kéo cửa sổ bằng chuột, thả `SUPER` có thể mở menu; bấm `Esc` để đóng.

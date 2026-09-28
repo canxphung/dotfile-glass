@@ -8,6 +8,7 @@
 local entry = assert(arg[1], "cần đường dẫn tới hyprland.lua")
 
 local binds = {}
+local envs = {}
 local errors = {}
 
 local function fail(msg)
@@ -52,6 +53,14 @@ rawset(hl, "config", function(tbl)
     end
 end)
 
+rawset(hl, "env", function(name, value)
+    if type(name) ~= "string" or type(value) ~= "string" then
+        fail("hl.env: cần (tên, giá trị) là chuỗi")
+        return
+    end
+    envs[#envs + 1] = name
+end)
+
 rawset(hl, "on", function(event, cb)
     if type(event) ~= "string" or type(cb) ~= "function" then
         fail("hl.on: cần (tên sự kiện, hàm)")
@@ -88,6 +97,18 @@ for _ in pairs(binds) do
 end
 if count < 20 then
     fail("chỉ có " .. count .. " phím tắt, có vẻ binds.lua không chạy hết")
+end
+
+-- Mọi biến hl.env phải được glass-session chép vào systemd --user, không
+-- thì dịch vụ và app mở từ start menu không thấy (vd. mất bộ gõ).
+local imported = {}
+for name in (os.getenv("GLASS_SESSION_ENV") or ""):gmatch("%S+") do
+    imported[name] = true
+end
+for _, name in ipairs(envs) do
+    if not imported[name] then
+        fail("biến " .. name .. " đặt bằng hl.env nhưng không có trong session_env của glass-session")
+    end
 end
 
 if #errors > 0 then

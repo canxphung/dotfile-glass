@@ -21,12 +21,16 @@ fail() {
 }
 
 # Chỉ phần không cần build Rust; glassd có test riêng (glassd-smoke.sh).
-make -s install-session install-sddm PREFIX="$prefix" SYSCONFDIR="$tmp/etc" >/dev/null
+make -s install-session install-shell install-sddm PREFIX="$prefix" SYSCONFDIR="$tmp/etc" >/dev/null
 
-# 1. Không còn placeholder nào.
-if grep -rl '@GLASS_DATADIR@' "$prefix" "$tmp/etc"; then
-    fail "còn @GLASS_DATADIR@ chưa thay"
+# 1. Không còn placeholder nào; shell cài đủ file QML.
+if grep -rl -e '@GLASS_DATADIR@' -e '@BINDIR@' "$prefix" "$tmp/etc"; then
+    fail "còn @GLASS_DATADIR@ hoặc @BINDIR@ chưa thay"
 fi
+[ "$(find "$glassdir/shell" -name '*.qml' | wc -l)" -eq "$(find shell -name '*.qml' | wc -l)" ] ||
+    fail "thiếu file QML của shell"
+grep -qF "ExecStart=$prefix/bin/glass-shell" "$prefix/lib/systemd/user/glass-shell.service" ||
+    fail "glass-shell.service không trỏ tới glass-shell"
 
 # 2. Mọi đường dẫn tới $glassdir được nhắc trong file cài đều tồn tại.
 #    require("x") của Lua có thể bỏ đuôi .lua.

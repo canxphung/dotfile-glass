@@ -7,6 +7,7 @@ set -u
 datadir=${GLASS_DATADIR:-@GLASS_DATADIR@}
 config_home=${XDG_CONFIG_HOME:-$HOME/.config}
 min_hyprland=0.56.0
+min_quickshell=0.3.0
 
 errors=0
 warnings=0
@@ -55,7 +56,6 @@ for cmd in Hyprland hyprctl hyprlock hypridle hyprpaper kitty wpctl brightnessct
 done
 if has start-hyprland; then ok "start-hyprland"; else warn "thiếu start-hyprland, sẽ chạy Hyprland trực tiếp (không có chế độ khôi phục khi crash)"; fi
 if has hyprshutdown; then ok "hyprshutdown"; else warn "thiếu hyprshutdown: đăng xuất sẽ kill app thay vì để app tự đóng"; fi
-if has hyprlauncher; then ok "hyprlauncher"; else warn "thiếu hyprlauncher: SUPER + R chưa có gì để mở (start menu có ở giai đoạn 3)"; fi
 if systemctl --user cat hyprpolkitagent.service >/dev/null 2>&1; then
     ok "hyprpolkitagent"
 else
@@ -103,6 +103,53 @@ if [ -n "${XDG_STATE_HOME-}" ] && [ "$XDG_STATE_HOME" != "$HOME/.local/state" ];
     warn "XDG_STATE_HOME=$XDG_STATE_HOME: hyprlock, hypridle, hyprpaper, kitty của Glass đọc theme ở ~/.local/state/glass"
     note "glassd ghi vào $XDG_STATE_HOME/glass nên các app đó sẽ không thấy thay đổi"
 fi
+
+section "Shell (taskbar, start menu, thông báo)"
+if has qs; then
+    ver=$(qs --version 2>/dev/null | sed -n 's/^Quickshell \([0-9][0-9.]*\).*/\1/p' | head -n1)
+    if [ -z "$ver" ]; then
+        warn "không đọc được phiên bản Quickshell"
+    elif version_ge "$ver" "$min_quickshell"; then
+        ok "Quickshell $ver"
+    else
+        fail "Quickshell $ver quá cũ, cần >= $min_quickshell (hỗ trợ Hyprland config Lua)"
+    fi
+else
+    fail "thiếu quickshell: không có taskbar, start menu, thông báo"
+fi
+if has glass-shell; then ok "glass-shell"; else fail "thiếu glass-shell (gói glass-shell)"; fi
+if has fc-list; then
+    if [ -n "$(fc-list 'Symbols Nerd Font' family 2>/dev/null)" ]; then
+        ok "font icon (Symbols Nerd Font)"
+    else
+        warn "thiếu font Symbols Nerd Font: icon trên taskbar sẽ thành ô vuông (gói ttf-nerd-fonts-symbols)"
+    fi
+fi
+if [ "${GLASS_SESSION-}" = 1 ]; then
+    if systemctl --user is-active --quiet glass-shell.service; then
+        ok "glass-shell.service đang chạy"
+    else
+        fail "glass-shell.service không chạy"
+        note "xem lỗi: journalctl --user -b -u glass-shell"
+    fi
+    if has gdbus; then
+        owner=$(gdbus call --session --dest org.freedesktop.Notifications \
+            --object-path /org/freedesktop/Notifications \
+            --method org.freedesktop.Notifications.GetServerInformation 2>/dev/null |
+            sed -n "s/^('\([^']*\)'.*/\1/p")
+        if [ "$owner" = quickshell ]; then
+            ok "thông báo do shell của Glass hiện"
+        elif [ -n "$owner" ]; then
+            warn "thông báo đang do $owner hiện, không phải shell của Glass"
+            note "gỡ hoặc tắt $owner rồi chạy: systemctl --user restart glass-shell"
+        fi
+    fi
+fi
+for pkg in dunst mako swaync xfce4-notifyd notification-daemon; do
+    if installed "$pkg"; then
+        warn "$pkg đang cài: nếu nó chạy trước shell thì thông báo sẽ do nó hiện"
+    fi
+done
 
 section "Dịch vụ"
 for unit in hypridle.service hyprpaper.service; do

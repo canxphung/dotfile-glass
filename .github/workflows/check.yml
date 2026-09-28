@@ -30,3 +30,33 @@ jobs:
 
       - name: make check
         run: make check LUA=lua5.4 LUAC=luac5.4
+
+  shell:
+    # Chạy shell QML trên Quickshell thật. Ubuntu chưa có quickshell nên
+    # dùng container Arch; sway headless làm compositor, không cần GPU.
+    runs-on: ubuntu-24.04
+    container: archlinux:latest
+    steps:
+      - name: Cài quickshell và công cụ test
+        run: |
+          pacman -Syu --noconfirm --needed git make python dbus quickshell \
+            sway wtype libnotify grim foot ttf-nerd-fonts-symbols noto-fonts
+          # Gói sway gắn capability cap_sys_nice; container không có quyền
+          # này nên chạy thẳng bị "Operation not permitted". Bản chép sang
+          # /usr/local/bin (đứng trước trong PATH) không mang capability.
+          install -m755 /usr/bin/sway /usr/local/bin/sway
+
+      - uses: actions/checkout@v4
+
+      - name: make test-shell
+        run: make test-shell
+        env:
+          GLASS_SMOKE_SHOTS: ${{ github.workspace }}/shots
+
+      - name: Lưu ảnh chụp màn hình
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shell-screenshots
+          path: shots/
+          if-no-files-found: ignore
