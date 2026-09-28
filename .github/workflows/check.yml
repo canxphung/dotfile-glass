@@ -14,6 +14,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck lua5.4 desktop-file-utils dbus
+          # dbus-next cho NetworkManager và BlueZ giả trong glassd-smoke.
+          sudo apt-get install -y python3-dbus-next || pip3 install --break-system-packages dbus-next
 
       - name: Rust
         run: |
@@ -30,6 +32,8 @@ jobs:
 
       - name: make check
         run: make check LUA=lua5.4 LUAC=luac5.4
+        env:
+          GLASS_SMOKE_REQUIRED: 1
 
   shell:
     # Chạy shell QML trên Quickshell thật. Ubuntu chưa có quickshell nên
@@ -40,13 +44,28 @@ jobs:
       - name: Cài quickshell và công cụ test
         run: |
           pacman -Syu --noconfirm --needed git make python dbus quickshell \
-            sway wtype libnotify grim foot ttf-nerd-fonts-symbols noto-fonts
+            sway wtype libnotify grim foot ttf-nerd-fonts-symbols noto-fonts \
+            rust pipewire wireplumber
+          # dbus-next cho NetworkManager và BlueZ giả; lấy từ pip nếu kho
+          # không có gói.
+          pacman -S --noconfirm --needed python-dbus-next || {
+            pacman -S --noconfirm --needed python-pip
+            pip install --break-system-packages dbus-next
+          }
           # Gói sway gắn capability cap_sys_nice; container không có quyền
           # này nên chạy thẳng bị "Operation not permitted". Bản chép sang
           # /usr/local/bin (đứng trước trong PATH) không mang capability.
           install -m755 /usr/bin/sway /usr/local/bin/sway
 
       - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            daemon/target
+          key: cargo-arch-${{ hashFiles('daemon/Cargo.lock') }}
 
       - name: make test-shell
         run: make test-shell

@@ -302,7 +302,7 @@ dependencies = [
 
 [[package]]
 name = "glass-core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "minijinja",
  "serde",
@@ -314,7 +314,7 @@ dependencies = [
 
 [[package]]
 name = "glassctl"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -324,7 +324,7 @@ dependencies = [
 
 [[package]]
 name = "glassd"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "futures-util",

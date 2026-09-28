@@ -6,7 +6,7 @@ Glass không phải một bộ dotfile để chép tay: nó được đóng gói
 
 ## Trạng thái
 
-**Xong giai đoạn 3** trên 5. Đăng nhập được vào phiên Glass với:
+**Xong giai đoạn 4** trên 5. Đăng nhập được vào phiên Glass với:
 
 - Hyprland (config Lua) có khung cửa sổ kính kiểu Aero: viền gradient, vệt sáng mép trong, bóng đổ, blur
 - Màn hình khoá (hyprlock), xử lý khi rảnh (hypridle), hình nền (hyprpaper)
@@ -14,10 +14,11 @@ Glass không phải một bộ dotfile để chép tay: nó được đóng gói
 - SDDM chạy greeter trên Wayland
 - Kitty trong suốt theo palette Aero Sky
 - Gõ tiếng Việt bằng fcitx5 + Bamboo (Telex), bật/tắt bằng `CTRL + Space`
-- **glassd**: daemon settings viết bằng Rust. Đổi palette (Aero Sky, Aero Twilight), hình nền, font, chế độ sáng/tối, thời gian khoá máy, night light bằng `glassctl` hoặc sửa `settings.toml`; mọi thứ đổi ngay, không cần đăng xuất
+- **glassd**: daemon settings viết bằng Rust. Đổi palette (Aero Sky, Aero Twilight), hình nền, font, chế độ sáng/tối, thời gian khoá máy, night light bằng `glassctl` hoặc sửa `settings.toml`; mọi thứ đổi ngay, không cần đăng xuất. Kiêm agent của NetworkManager và BlueZ: hỏi mật khẩu Wi-Fi, xác nhận mã ghép nối Bluetooth
 - **Shell** (Quickshell): taskbar kính kiểu Windows 7 với nút Start, app ghim và cửa sổ gộp theo app, workspace, khay hệ thống, âm lượng, pin, đồng hồ + lịch; start menu hai cột, tìm app không cần gõ dấu; thông báo; OSD âm lượng/độ sáng; menu khoá / đăng xuất / ngủ / tắt máy
+- **Control center** (`SUPER + A`): công tắc nhanh Wi-Fi, Bluetooth, không làm phiền, ánh sáng đêm, chế độ tối, tiết kiệm pin; thanh trượt âm lượng, micro, độ sáng; chọn mạng Wi-Fi, ghép nối thiết bị Bluetooth, chọn loa và chỉnh âm lượng từng app; thông báo cũ. Mật khẩu Wi-Fi và mã ghép nối hỏi bằng hộp thoại kính giữa màn hình
 
-Chưa có control center (Wi-Fi, Bluetooth, âm thanh chi tiết) và theme cho app GTK/Qt. Xem lộ trình trong [docs/architecture.md](docs/architecture.md).
+Chưa có theme cho app GTK/Qt, theme SDDM và cửa sổ Settings (giai đoạn 5). Xem lộ trình trong [docs/architecture.md](docs/architecture.md).
 
 ## Cài đặt (CachyOS / Arch)
 
@@ -83,12 +84,13 @@ Phím tắt: [docs/keybinds.md](docs/keybinds.md).
 ```sh
 make             # build glassd, glassctl
 make check       # shellcheck, luac, desktop-file-validate, systemd-analyze, cargo fmt/clippy/test, test tích hợp
-make test-shell  # chạy shell QML thật trên sway headless (cần quickshell, sway, wtype, notify-send)
+make test-shell  # chạy shell QML thật trên sway headless (cần quickshell, sway, wtype, notify-send,
+                 # cargo, python dbus-next, pipewire, wireplumber)
 ```
 
 - Test Lua chạy thử toàn bộ config Hyprland với một `hl` giả để bắt lỗi runtime, phím tắt trùng, và biến môi trường chưa được chép vào systemd.
-- Test glassd chạy daemon thật trên một session bus riêng, đổi settings qua `glassctl`, socket và sửa tay file, rồi kiểm tra file sinh ra và lệnh được gọi (gsettings, hyprctl, systemctl thay bằng stub).
-- Test shell chạy Quickshell trên sway headless (không cần GPU) với IPC Hyprland giả (`tests/fake-hyprland.py`): gõ phím thật vào start menu, gửi thông báo thật, mở menu nguồn, đổi palette, và không cho phép cảnh báo QML nào. `GLASS_SMOKE_SHOTS=thư-mục` để lưu ảnh chụp từng bước. Thiếu công cụ thì `make check` bỏ qua bước này; CI chạy nó trong container Arch.
+- Test glassd chạy daemon thật trên một session bus riêng, đổi settings qua `glassctl`, socket và sửa tay file, rồi kiểm tra file sinh ra và lệnh được gọi (gsettings, hyprctl, systemctl thay bằng stub). Agent Wi-Fi/Bluetooth được thử với NetworkManager và BlueZ giả (`tests/fake-networkmanager.py`, `tests/fake-bluez.py`) trên một system bus riêng: sai mật khẩu thì được hỏi lại, huỷ, xác nhận và từ chối mã ghép nối.
+- Test shell chạy Quickshell trên sway headless (không cần GPU) với IPC Hyprland giả (`tests/fake-hyprland.py`): gõ phím thật vào start menu, gửi thông báo thật, mở menu nguồn, đổi palette; chỉnh âm lượng trên PipeWire thật; nối Wi-Fi và ghép nối Bluetooth qua hộp thoại với glassd thật và NetworkManager, BlueZ giả; và không cho phép cảnh báo QML nào. `GLASS_SMOKE_SHOTS=thư-mục` để lưu ảnh chụp từng bước. Thiếu công cụ thì `make check` bỏ qua bước này; CI chạy nó trong container Arch.
 - Blur, phím SUPER, phiên thật chỉ kiểm được trên máy có Hyprland: [docs/testing.md](docs/testing.md).
 
 Sửa shell tại chỗ: `GLASS_SHELL_DIR=$PWD/shell GLASS_SHELL_WATCH=1 glass-shell` (dừng `glass-shell.service` trước) để shell tự nạp lại khi lưu file QML.

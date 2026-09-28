@@ -57,6 +57,7 @@ Mặc định gõ kiểu Telex. Đổi sang VNI, bảng mã hay phím tắt khá
 | `SUPER + L` | Khoá máy |
 | `SUPER + SHIFT + E`, `CTRL + ALT + Delete` | Menu nguồn: khoá, đăng xuất, ngủ, khởi động lại, tắt máy (`↑`/`↓`, `Enter`, `Esc`) |
 | `SUPER + N` | Bật/tắt không làm phiền (vẫn hiện thông báo khẩn) |
+| `SUPER + A` | Control center: Wi-Fi, Bluetooth, âm thanh, độ sáng, thông báo (`Esc` lùi về / đóng) |
 
 ## Chụp màn hình
 

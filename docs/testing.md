@@ -179,7 +179,7 @@ Taskbar:
 - [ ] Bỏ ghim rồi ghim lại một app; đăng xuất/đăng nhập lại vẫn giữ
 - [ ] Workspace: số đang dùng sáng hơn; bấm để chuyển; `SUPER + 3` thì ô số 3 sáng theo
 - [ ] Khay: icon fcitx5 (và app khác nếu có: Discord, Steam...), chuột phải hiện menu của app
-- [ ] Âm lượng: lăn chuột trên icon loa đổi âm lượng, có OSD; bấm để tắt tiếng
+- [ ] Nhóm icon mạng / Bluetooth / loa / pin: lăn chuột đổi âm lượng, có OSD; bấm mở control center
 - [ ] Laptop: icon pin và phần trăm, đổi icon khi cắm sạc
 - [ ] Đồng hồ hai dòng; bấm hiện lịch tháng, có đánh dấu hôm nay, chuyển tháng được
 
@@ -211,6 +211,39 @@ Thông báo, OSD, menu nguồn:
 
 - [ ] `glassctl palette twilight`: taskbar, start menu, thông báo chuyển sang tím ngay
 - [ ] `glassctl set appearance.font "Noto Sans 12"`: chữ trên taskbar và start menu to lên
+
+## 12. Control center, Wi-Fi, Bluetooth
+
+Control center:
+
+- [ ] `SUPER + A` hoặc bấm nhóm icon mạng/loa trên taskbar: bảng kính góc dưới phải trượt lên; bấm ra ngoài hoặc `Esc` thì đóng
+- [ ] Ô Wi-Fi, Bluetooth ghi đúng mạng/thiết bị đang dùng; bấm ô thì bật/tắt, bấm `›` thì sang trang riêng; `Esc` ở trang con thì về trang chính
+- [ ] "Không làm phiền", "Ánh sáng đêm", "Chế độ tối" bật/tắt được; `glassctl get night_light.enabled` đổi theo
+- [ ] Laptop: "Tiết kiệm pin", dòng pin còn bao nhiêu phần trăm / bao lâu, ba nút chế độ nguồn (`powerprofilesctl get` đổi theo)
+- [ ] Kéo thanh âm lượng, micro, độ sáng: đổi ngay, không bật OSD trùng; bấm icon loa/micro để tắt tiếng
+- [ ] Trang âm thanh: chọn loa khác (vd. tai nghe HDMI/USB), âm thanh chuyển sang đó; đang phát nhạc thì có thanh âm lượng riêng cho app đó
+- [ ] Thông báo cũ hiện trong bảng; bấm × xoá từng cái, "Xoá hết" xoá tất cả
+
+Wi-Fi:
+
+- [ ] Trang Wi-Fi quét và hiện các mạng xung quanh, mạng có mật khẩu có ổ khoá, mạng đang dùng in đậm lên đầu
+- [ ] Nối mạng mới có mật khẩu: màn hình mờ đi, hộp thoại "Nhập mật khẩu Wi-Fi" hiện giữa màn hình, gõ được ngay (kể cả khi control center đang mở)
+- [ ] Gõ sai mật khẩu: hộp thoại hiện lại với dòng "không đúng. Nhập lại"; gõ đúng thì nối được, icon trên taskbar đổi theo sóng
+- [ ] `Esc` ở hộp thoại: huỷ nối, mạng hiện "Chưa nhập mật khẩu" khi mở rộng
+- [ ] Mạng đã lưu: bấm "Ngắt kết nối", "Kết nối" lại không hỏi mật khẩu; "Quên" thì mạng mất khỏi danh sách đã lưu
+- [ ] Tắt Wi-Fi bằng công tắc: danh sách trống, icon Wi-Fi gạch chéo; bật lại thì tự nối mạng quen
+- [ ] Mạng doanh nghiệp (802.1X, nếu có): hộp thoại hỏi cả tên đăng nhập và mật khẩu
+- [ ] `glass-doctor` không báo nm-applet/blueman tự chạy (nếu có thì làm theo hướng dẫn để tắt)
+
+Bluetooth:
+
+- [ ] Trang Bluetooth: thiết bị đã ghép nối ở trên, thiết bị tìm thấy ở dưới; đang mở trang thì máy luôn tìm thiết bị
+- [ ] Ghép nối tai nghe/loa: hộp thoại hiện mã 6 số (hoặc hỏi cho phép), `Enter` đồng ý; xong thì tự kết nối, tai nghe hiện trong trang âm thanh
+- [ ] Ghép nối bàn phím: hộp thoại hiện mã để gõ trên bàn phím; gõ xong thì hộp thoại tự đóng
+- [ ] Từ chối ở hộp thoại: thiết bị báo ghép nối thất bại, không bị ghép nối
+- [ ] Tai nghe có báo pin: trạng thái hiện "pin ...%"
+- [ ] "Ngắt", "Huỷ ghép nối" hoạt động; tắt Bluetooth bằng công tắc thì thiết bị ngắt hết
+- [ ] `systemctl restart bluetooth` (hoặc `NetworkManager`) rồi ghép nối/nối Wi-Fi lại: hộp thoại vẫn hiện (glassd tự đăng ký lại agent)
 
 ## Thu log
 

@@ -14,10 +14,10 @@
 | Display manager | SDDM, greeter Wayland qua weston | GĐ1 (theme riêng ở GĐ5) |
 | Terminal | kitty | GĐ1 |
 | Bộ gõ | fcitx5 + Bamboo (tiếng Việt) | GĐ1 (theme Aero cho ô gợi ý ở GĐ5) |
-| Core daemon | glassd (Rust): settings, theme runtime; agent NM/BlueZ ở GĐ4 | GĐ2 |
+| Core daemon | glassd (Rust): settings, theme runtime; agent mật khẩu Wi-Fi và ghép nối Bluetooth | GĐ2, agent ở GĐ4 |
 | IPC | D-Bus cho API công khai, unix socket cho shell ([ipc.md](ipc.md)) | GĐ2 |
 | Night light | hyprsunset, glassd bật/tắt theo giờ | GĐ2 |
-| Shell | Quickshell + QML: taskbar, start menu, thông báo, OSD, menu nguồn | GĐ3 (control center ở GĐ4) |
+| Shell | Quickshell + QML: taskbar, start menu, thông báo, OSD, menu nguồn, control center | GĐ3, control center ở GĐ4 |
 | Network / BT / Audio / Power | NetworkManager, BlueZ, PipeWire, UPower + power-profiles-daemon | GĐ4 |
 | Theme | palette Aero cố định, GTK, Kvantum, color scheme KDE | GĐ5 |
 
@@ -109,29 +109,50 @@ Mọi đường đổi settings (D-Bus, socket, sửa tay file) đi qua cùng m�
 
 Nếu `settings.toml` bị sửa hỏng, glassd giữ settings cũ, phát sự kiện `FileError` và từ chối ghi đè file cho tới khi bạn sửa xong, để không làm mất phần đang sửa dở.
 
+### Agent Wi-Fi và Bluetooth
+
+```
+NetworkManager ──GetSecrets──▶ nm_agent.rs ─┐                         ┌─▶ PromptDialog (shell)
+                                            ├─▶ prompts.rs ──socket──┤
+bluetoothd ──RequestConfirmation──▶ bt_agent.rs ─┘   (hàng đợi hộp thoại)   └─◀ prompt_reply / prompt_cancel
+```
+
+- `nm_agent.rs` là secret agent của NetworkManager, `bt_agent.rs` là agent mặc định của BlueZ (`KeyboardDisplay`), cùng trên system bus. Cả hai theo dõi `NameOwnerChanged` để đăng ký lại khi NetworkManager hay bluetoothd khởi động lại.
+- `prompts.rs` giữ các hộp thoại đang mở và chuyển chúng tới client socket đã gọi `handle_prompts` (shell). Shell khởi động lại thì nhận lại các hộp thoại đang mở; không có shell thì agent trả lời ngay là không có mật khẩu / từ chối, để NetworkManager, BlueZ hỏi agent khác nếu có.
+- Mật khẩu không qua D-Bus công khai, không ghi log, không lưu trong glassd: nó đi từ shell qua socket (`0600`) tới agent rồi tới NetworkManager, và NetworkManager lưu như với mọi agent khác.
+- Hết giờ (110 giây với Wi-Fi, 60 giây với Bluetooth, không quá hạn chờ của NetworkManager và BlueZ) thì hộp thoại tự đóng. NetworkManager/BlueZ huỷ yêu cầu (`CancelGetSecrets`, `Cancel`) thì hộp thoại cũng đóng theo.
+
 ## Shell
 
 ```
 shell/
-├── shell.qml        gốc: taskbar mỗi màn hình, start menu, menu nguồn, thông báo, OSD, IPC
+├── shell.qml        gốc: taskbar mỗi màn hình, start menu, menu nguồn, thông báo, OSD,
+│                    control center, hộp thoại, IPC
 ├── services/        singleton dùng chung
 │   ├── Theme.qml        màu, font từ theme/shell.json (dự phòng: Aero Sky)
 │   ├── Apps.qml         danh sách app, tìm kiếm không dấu, app ghim, số lần mở
 │   ├── Tasks.qml        nút taskbar: app ghim + cửa sổ gộp theo app
 │   ├── Notifs.qml       máy chủ thông báo, popup, lịch sử, không làm phiền
-│   ├── Audio.qml        loa/micro mặc định (PipeWire)
+│   ├── Audio.qml        loa, micro, luồng phát của app (PipeWire)
+│   ├── Net.qml          Wi-Fi, mạng dây (NetworkManager)
+│   ├── Bt.qml           Bluetooth: thiết bị, ghép nối rồi kết nối (BlueZ)
+│   ├── Power.qml        pin (UPower), chế độ nguồn (power-profiles-daemon)
 │   ├── Brightness.qml   độ sáng (brightnessctl)
+│   ├── Glassd.qml       socket của glassd: settings, hàng đợi hộp thoại
 │   ├── Overlays.qml     lớp phủ nào đang mở, màn hình nào đang focus
 │   └── Glass.qml        chạy app qua glass-session run, thao tác phiên
-├── components/      mặt kính, nút hover kiểu Windows 7, popup, icon
-├── taskbar/         thanh dưới: nút Start, app, workspace, khay, âm lượng/pin, đồng hồ + lịch
+├── components/      mặt kính, nút hover kiểu Windows 7, popup, thanh trượt, công tắc, ô nhập
+├── taskbar/         thanh dưới: nút Start, app, workspace, khay, mạng/Bluetooth/âm lượng/pin, đồng hồ + lịch
 ├── startmenu/       start menu hai cột kiểu Windows 7
+├── controlcenter/   bảng góc dưới phải: công tắc nhanh, thanh trượt, trang Wi-Fi, Bluetooth, âm thanh
+├── prompts/         hộp thoại mật khẩu Wi-Fi, mã ghép nối Bluetooth (từ agent của glassd)
 ├── notifications/   popup thông báo góc dưới phải
 ├── osd/             OSD âm lượng, độ sáng
 └── power/           menu khoá / đăng xuất / ngủ / khởi động lại / tắt máy
 ```
 
-- Shell đọc thẳng dữ liệu hệ thống qua Quickshell: cửa sổ (wlr-foreign-toplevel), workspace (IPC Hyprland, chế độ Lua), âm thanh (PipeWire), pin (UPower), khay (StatusNotifierItem), thông báo (giữ tên `org.freedesktop.Notifications`). Màu và font thì theo glassd qua `shell.json`.
+- Shell đọc thẳng dữ liệu hệ thống qua Quickshell: cửa sổ (wlr-foreign-toplevel), workspace (IPC Hyprland, chế độ Lua), âm thanh (PipeWire), mạng (NetworkManager), Bluetooth (BlueZ), pin (UPower), chế độ nguồn (power-profiles-daemon), khay (StatusNotifierItem), thông báo (giữ tên `org.freedesktop.Notifications`). Màu và font thì theo glassd qua `shell.json`; ánh sáng đêm, chế độ tối là settings của glassd, đổi qua socket.
+- Hộp thoại mật khẩu/ghép nối do agent trong glassd yêu cầu, shell chỉ hiện và trả lời. Khi có hộp thoại, các lớp phủ khác (control center, start menu) nhả bàn phím cho nó. glassd không chạy thì trang Wi-Fi tự hỏi mật khẩu ngay trong danh sách (`connectWithPsk`).
 - Mọi bề mặt đặt namespace `glass-*`; layer rule trong `rules.lua` bật blur phía sau (cả popup) và bỏ qua vùng gần như trong suốt. Start menu và menu nguồn phủ cả màn hình bằng một lớp trong suốt để bấm ra ngoài là đóng, không phụ thuộc giao thức riêng của Hyprland.
 - App mở từ shell chạy qua `glass-session run ID LỆNH...` → `systemd-run --user --scope --slice=app.slice --unit=app-glass-<id>-<ngẫu nhiên>`. Mỗi app một scope riêng: khởi động lại shell không đóng app, và systemd-oomd, `systemd-cgls` thấy từng app.
 - Trạng thái riêng của shell (app ghim, số lần mở) ở `~/.local/state/glass/shell/apps.json`.
@@ -142,5 +163,5 @@ shell/
 1. **Nền phiên** (xong): Hyprland, session, lock/idle/wallpaper, portal, SDDM, kitty, bộ gõ.
 2. **glassd tối thiểu** (xong): `settings.toml`, D-Bus + socket, áp gsettings, render theme runtime, night light, `glassctl`, palette Sky và Twilight.
 3. **Shell cơ bản** (xong): taskbar, start menu, thông báo, OSD, menu nguồn, lịch.
-4. **Control center + agent**: Wi-Fi, Bluetooth, âm thanh, nguồn; hộp thoại mật khẩu Wi-Fi và ghép nối Bluetooth.
+4. **Control center + agent** (xong): Wi-Fi, Bluetooth, âm thanh (loa, micro, từng app), độ sáng, nguồn, thông báo; agent NetworkManager và BlueZ trong glassd, hộp thoại mật khẩu Wi-Fi và ghép nối Bluetooth.
 5. **Theme đầy đủ**: GTK3, đè màu GTK4/libadwaita, Kvantum, color scheme KDE, theme SDDM, cửa sổ Settings.
