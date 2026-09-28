@@ -244,12 +244,13 @@ fi
 # 9. Log không có cảnh báo nào của QML. Bỏ qua các cảnh báo do môi trường
 #    test: không có PipeWire, không có system bus (UPower), sway không có
 #    giao thức riêng của Hyprland; và cảnh báo nội bộ của QtWayland khi
-#    focus bàn phím chuyển giữa các bề mặt.
+#    sway chuyển focus bàn phím giữa các bề mặt.
 problems=$(grep -E ' (WARN|ERROR|CRIT|FATAL)' "$tmp/shell.log" |
     grep -v -e 'quickshell.service.pipewire' \
         -e 'quickshell.service.upower' \
         -e 'hyprland-toplevel-mapping' \
-        -e 'qt.qpa.wayland.textinput' || true)
+        -e 'qt.qpa.wayland.textinput' \
+        -e 'Ignoring unexpected wl_keyboard.leave event' || true)
 if [ -n "$problems" ]; then
     fail "shell ghi cảnh báo:
 $problems"
