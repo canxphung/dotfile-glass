@@ -50,7 +50,9 @@ trap cleanup EXIT
 
 fail() {
     printf 'FAIL: %s\n' "$*" >&2
-    [ -f "$tmp/shell.log" ] && sed 's/^/  shell: /' "$tmp/shell.log" >&2
+    for log in sway hyprland shell; do
+        [ -s "$tmp/$log.log" ] && sed "s/^/  $log: /" "$tmp/$log.log" >&2
+    done
     exit 1
 }
 
@@ -118,8 +120,19 @@ EOF
 WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 WLR_HEADLESS_OUTPUTS=1 \
     sway --config "$tmp/sway.conf" >"$tmp/sway.log" 2>&1 &
 pids="$pids $!"
-wait_for '[ -S "$XDG_RUNTIME_DIR/wayland-1" ]' "sway chạy"
-export WAYLAND_DISPLAY=wayland-1
+# Tên socket (wayland-0, wayland-1...) tuỳ phiên bản libwayland.
+wayland_socket() {
+    for s in "$XDG_RUNTIME_DIR"/wayland-[0-9]; do
+        if [ -S "$s" ]; then
+            echo "${s##*/}"
+            return 0
+        fi
+    done
+    return 1
+}
+wait_for 'wayland_socket >/dev/null' "sway chạy"
+WAYLAND_DISPLAY=$(wayland_socket)
+export WAYLAND_DISPLAY
 
 python3 tests/fake-hyprland.py HEADLESS-1 "$tmp/dispatch.log" >"$tmp/hyprland.log" 2>&1 &
 pids="$pids $!"
