@@ -6,3 +6,6 @@
 
 # cargo
 /daemon/target/
+
+# python
+__pycache__/

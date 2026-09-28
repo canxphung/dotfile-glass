@@ -4,9 +4,11 @@
 #   make                                    build glassd, glassctl (cargo)
 #   make check                              kiểm tra tĩnh + test (cần shellcheck, lua, luac,
 #                                           desktop-file-validate, systemd-analyze, cargo,
-#                                           dbus-run-session, python3)
+#                                           dbus-run-session, python3; python dbus-next để
+#                                           test agent Wi-Fi/Bluetooth)
 #   make test-shell                         chạy thử shell QML trên sway headless (cần
-#                                           quickshell, sway, wtype, notify-send, grim)
+#                                           quickshell, sway, wtype, notify-send, grim,
+#                                           cargo, python dbus-next, pipewire, wireplumber)
 #   make install DESTDIR=/tmp/root          cài thử vào thư mục tạm
 #   sudo make install                       cài thẳng vào hệ thống (nên dùng PKGBUILD)
 

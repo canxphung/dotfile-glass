@@ -4,11 +4,18 @@
 //! - Render file theme/state vào `~/.local/state/glass` từ palette + settings.
 //! - Áp ra hệ thống: gsettings, Hyprland, kitty, hypridle, hyprpaper, hyprsunset.
 //! - API: D-Bus `io.github.canxphung.Glass1` và unix socket cho shell.
+//! - Agent mật khẩu Wi-Fi (NetworkManager) và ghép nối Bluetooth (BlueZ)
+//!   trên system bus; hộp thoại do shell hiện qua socket.
 //!
 //! Chạy bởi glassd.service trong phiên Glass.
 
+#[cfg(test)]
+mod agent_tests;
 mod apply;
+mod bt_agent;
 mod dbus;
+mod nm_agent;
+mod prompts;
 mod service;
 mod socket;
 mod watch;
@@ -17,9 +24,10 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use glass_core::Paths;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use tracing_subscriber::EnvFilter;
 
+use crate::prompts::Prompts;
 use crate::service::Service;
 
 fn main() -> anyhow::Result<()> {
@@ -77,8 +85,10 @@ async fn run() -> anyhow::Result<()> {
     let listener = socket::bind(&service.paths().socket())?;
     info!("glassd {} sẵn sàng", env!("CARGO_PKG_VERSION"));
 
+    let prompts = Arc::new(Prompts::default());
     let watcher = tokio::spawn(watch::run(service.clone()));
-    tokio::spawn(socket::serve(service.clone(), listener));
+    tokio::spawn(socket::serve(service.clone(), prompts.clone(), listener));
+    start_agents(prompts).await;
 
     let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
     tokio::select! {
@@ -92,4 +102,33 @@ async fn run() -> anyhow::Result<()> {
 
     let _ = std::fs::remove_file(service.paths().socket());
     Ok(())
+}
+
+/// Agent Wi-Fi và Bluetooth. Không có system bus (vd. trong container) thì
+/// glassd vẫn chạy, chỉ là không có hộp thoại mật khẩu/ghép nối.
+async fn start_agents(prompts: Arc<Prompts>) {
+    if std::env::var_os("GLASSD_NO_AGENTS").is_some() {
+        info!("GLASSD_NO_AGENTS: không đăng ký agent Wi-Fi/Bluetooth");
+        return;
+    }
+    let system = match zbus::Connection::system().await {
+        Ok(system) => system,
+        Err(e) => {
+            warn!("không kết nối được system bus, không có agent Wi-Fi/Bluetooth: {e}");
+            return;
+        }
+    };
+    let agents = [
+        ("Wi-Fi", tokio::spawn(nm_agent::run(system.clone(), prompts.clone()))),
+        ("Bluetooth", tokio::spawn(bt_agent::run(system, prompts))),
+    ];
+    for (name, task) in agents {
+        tokio::spawn(async move {
+            match task.await {
+                Ok(Err(e)) => warn!("agent {name} dừng: {e:#}"),
+                Err(e) => warn!("agent {name} dừng bất thường: {e}"),
+                Ok(Ok(())) => {}
+            }
+        });
+    }
 }

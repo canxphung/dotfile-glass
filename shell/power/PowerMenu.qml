@@ -40,7 +40,7 @@ PanelWindow {
 
     WlrLayershell.namespace: "glass-powermenu"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: visible && !Glassd.prompting ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     onVisibleChanged: {
         if (visible) {

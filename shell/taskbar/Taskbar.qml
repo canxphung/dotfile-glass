@@ -61,6 +61,7 @@ PanelWindow {
 
         Indicators {
             Layout.fillHeight: true
+            screen: bar.screen
         }
 
         Clock {

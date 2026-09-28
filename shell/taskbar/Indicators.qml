@@ -1,71 +1,79 @@
 import QtQuick
 import Quickshell
-import Quickshell.Services.UPower
 import qs.services
 import qs.components
 
-// Âm lượng, pin, thông báo.
+// Mạng, Bluetooth, âm lượng, pin: gộp một nút, bấm để mở control center,
+// lăn chuột để chỉnh âm lượng. Chuông thông báo bên cạnh.
 Row {
     id: root
 
+    required property var screen
+
     spacing: 1
 
-    // Âm lượng: bấm để tắt/bật tiếng, lăn chuột để chỉnh.
     HoverButton {
         anchors.verticalCenter: parent.verticalCenter
-        width: 30
+        width: icons.implicitWidth + 14
         height: 32
-        visible: Audio.sink !== null
-        onClicked: Audio.toggleMute()
+        highlighted: Overlays.controlCenter && Overlays.screen === root.screen
+        onClicked: Overlays.toggleControlCenter(root.screen)
         onWheel: wheel => Audio.setVolume(Audio.volume + (wheel.angleDelta.y > 0 ? 0.05 : -0.05))
 
-        Glyph {
-            anchors.centerIn: parent
-            text: Audio.glyph()
-            size: 18
-            opacity: Audio.muted ? 0.6 : 1
-        }
-    }
-
-    // Pin: chỉ hiện trên laptop.
-    Item {
-        readonly property var battery: UPower.displayDevice
-        readonly property bool charging: battery.state === UPowerDeviceState.Charging || battery.state === UPowerDeviceState.FullyCharged || battery.state === UPowerDeviceState.PendingCharge
-        readonly property int percent: Math.round(battery.percentage * 100)
-
-        anchors.verticalCenter: parent.verticalCenter
-        visible: battery.isLaptopBattery
-        width: visible ? batteryRow.implicitWidth + 10 : 0
-        height: 32
-
         Row {
-            id: batteryRow
+            id: icons
             anchors.centerIn: parent
-            spacing: 2
+            spacing: 6
 
             Glyph {
-                text: Battery.glyph(parent.parent.percent, parent.parent.charging)
-                size: 18
-                color: parent.parent.percent <= 10 && !parent.parent.charging ? Theme.danger : Theme.textOnGlass
+                text: Net.glyph()
+                size: 17
+                opacity: Net.available && (Net.activeWifi || Net.wiredConnected) ? 1 : 0.6
             }
 
-            Label {
-                text: parent.parent.percent + "%"
+            Glyph {
+                visible: Bt.available && Bt.enabled
+                text: Bt.glyph()
+                size: 17
+                opacity: Bt.connected.length > 0 ? 1 : 0.6
+            }
+
+            Glyph {
+                visible: Audio.sink !== null
+                text: Audio.glyph()
+                size: 18
+                opacity: Audio.muted ? 0.6 : 1
+            }
+
+            Row {
+                visible: Power.hasBattery
+                spacing: 2
+
+                Glyph {
+                    text: Battery.glyph(Power.percent, Power.charging || Power.full)
+                    size: 18
+                    color: Power.percent <= 10 && !Power.charging ? Theme.danger : Theme.textOnGlass
+                }
+
+                Label {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Power.percent + "%"
+                }
             }
         }
     }
 
-    // Thông báo: chấm sáng khi có thông báo, bấm để bật/tắt không làm phiền.
+    // Chuông: chấm sáng khi có thông báo, gạch chéo khi không làm phiền.
     HoverButton {
         anchors.verticalCenter: parent.verticalCenter
         width: 30
         height: 32
         highlighted: Notifs.dnd
-        onClicked: Notifs.dnd = !Notifs.dnd
+        onClicked: Overlays.toggleControlCenter(root.screen)
 
         Glyph {
             anchors.centerIn: parent
-            text: Notifs.dnd ? "\u{f009b}" : Notifs.history.length > 0 ? "\u{f116b}" : "\u{f009a}"
+            text: Notifs.dnd ? Icons.bellOff : Notifs.history.length > 0 ? "\u{f116b}" : Icons.bell
             size: 18
         }
     }

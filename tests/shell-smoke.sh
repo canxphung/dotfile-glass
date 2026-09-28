@@ -1,15 +1,24 @@
 #!/bin/sh
 # Chạy shell QML thật trên sway headless (không cần GPU), với session bus
-# riêng, HOME tạm và IPC Hyprland giả (tests/fake-hyprland.py). Gõ phím
-# thật bằng wtype, gửi thông báo thật bằng notify-send, rồi kiểm tra trạng
-# thái qua IPC của shell. Lệnh bên ngoài (systemd-run, systemctl,
-# brightnessctl, xdg-open) được thay bằng stub ghi lại lời gọi.
+# và system bus riêng, HOME tạm và IPC Hyprland giả (tests/fake-hyprland.py).
+# Gõ phím thật bằng wtype, gửi thông báo thật bằng notify-send, rồi kiểm tra
+# trạng thái qua IPC của shell. Lệnh bên ngoài (systemd-run, systemctl,
+# brightnessctl, xdg-open, hyprctl, gsettings) được thay bằng stub ghi lại
+# lời gọi.
 #
-# Thiếu quickshell, sway, wtype... thì bỏ qua, trừ khi đặt
-# GLASS_SHELL_SMOKE_REQUIRED=1 (make test-shell, CI).
+# Có thêm các phần sau thì test luôn phần đó:
+#   - glassd (build bằng cargo) và python dbus-next: NetworkManager và BlueZ
+#     giả trên system bus riêng (tests/fake-networkmanager.py,
+#     tests/fake-bluez.py), hộp thoại mật khẩu Wi-Fi và ghép nối Bluetooth
+#     qua agent của glassd;
+#   - pipewire, wireplumber: loa ảo, âm lượng, OSD.
+#
+# Thiếu quickshell, sway, wtype... (hay các phần trên) thì bỏ qua, trừ khi
+# đặt GLASS_SHELL_SMOKE_REQUIRED=1 (make test-shell, CI).
 #
 # Biến môi trường:
 #   QS                  lệnh quickshell (mặc định qs)
+#   GLASSD              file glassd có sẵn (mặc định build bằng cargo)
 #   GLASS_SMOKE_SHOTS   thư mục lưu ảnh chụp màn hình từng bước (cần grim)
 #   GLASS_SMOKE_LOG=1   in log của shell khi xong
 
@@ -35,7 +44,11 @@ if [ -z "${GLASS_SMOKE_INNER-}" ]; then
         printf 'shell: bỏ qua (thiếu%s)\n' "$missing"
         exit 0
     fi
-    exec env GLASS_SMOKE_INNER=1 dbus-run-session -- "$0" "$@"
+    if [ -z "${GLASSD-}" ] && command -v cargo >/dev/null 2>&1; then
+        cargo build -q --locked --manifest-path daemon/Cargo.toml
+        GLASSD=${CARGO_TARGET_DIR:-$repo/daemon/target}/debug/glassd
+    fi
+    exec env GLASS_SMOKE_INNER=1 GLASSD="${GLASSD-}" dbus-run-session -- "$0" "$@"
 fi
 
 tmp=$(mktemp -d)
@@ -50,7 +63,7 @@ trap cleanup EXIT
 
 fail() {
     printf 'FAIL: %s\n' "$*" >&2
-    for log in sway hyprland shell; do
+    for log in sway hyprland glassd nm bluez shell; do
         [ -s "$tmp/$log.log" ] && sed "s/^/  $log: /" "$tmp/$log.log" >&2
     done
     exit 1
@@ -65,14 +78,37 @@ wait_for() {
     done
 }
 
+# Phần nào có thì test phần đó (xem đầu file).
+optional() {
+    if [ -n "${GLASS_SHELL_SMOKE_REQUIRED-}" ]; then
+        fail "thiếu $1"
+    fi
+    printf 'shell: bỏ qua phần %s (thiếu %s)\n' "$2" "$1"
+}
+agents=
+if [ -z "${GLASSD-}" ] || [ ! -x "$GLASSD" ]; then
+    optional "glassd (cần cargo)" "Wi-Fi/Bluetooth"
+elif ! python3 -c 'import dbus_next' 2>/dev/null; then
+    optional "python dbus-next" "Wi-Fi/Bluetooth"
+else
+    agents=1
+fi
+pipewire=
+if command -v pipewire >/dev/null 2>&1 && command -v wireplumber >/dev/null 2>&1; then
+    pipewire=1
+else
+    optional "pipewire, wireplumber" "âm thanh"
+fi
+
 # Cài giống gói vào prefix tạm.
 prefix=$tmp/prefix
 make -s install-session install-shell PREFIX="$prefix" SYSCONFDIR="$tmp/etc" >/dev/null
+install -Dm644 -t "$prefix/share/glass/templates" theme/runtime/*.j2
 
 # Stub: ghi lại lời gọi vào calls.log.
 stubs=$tmp/stubs
 mkdir -p "$stubs"
-for cmd in systemd-run systemctl xdg-open; do
+for cmd in systemd-run systemctl xdg-open hyprctl gsettings; do
     printf '#!/bin/sh\necho "%s $*" >> "%s/calls.log"\n' "$cmd" "$tmp" >"$stubs/$cmd"
 done
 cat >"$stubs/brightnessctl" <<EOF
@@ -137,6 +173,32 @@ export WAYLAND_DISPLAY
 python3 tests/fake-hyprland.py HEADLESS-1 "$tmp/dispatch.log" >"$tmp/hyprland.log" 2>&1 &
 pids="$pids $!"
 wait_for '[ -S "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock" ]' "IPC Hyprland giả"
+
+# System bus riêng cho NetworkManager, BlueZ giả và agent của glassd.
+DBUS_SYSTEM_BUS_ADDRESS=$(dbus-daemon --session --fork --print-address=1 --print-pid=3 3>"$tmp/sysbus.pid" 2>/dev/null)
+export DBUS_SYSTEM_BUS_ADDRESS
+pids="$pids $(cat "$tmp/sysbus.pid")"
+
+if [ -n "$agents" ]; then
+    python3 tests/fake-networkmanager.py "$tmp/nm.log" >"$tmp/nm.out" 2>&1 &
+    pids="$pids $!"
+    python3 tests/fake-bluez.py "$tmp/bluez.log" >"$tmp/bluez.out" 2>&1 &
+    pids="$pids $!"
+    GLASS_DATADIR="$prefix/share/glass" GLASSD_LOG=debug "$GLASSD" >"$tmp/glassd.log" 2>&1 &
+    pids="$pids $!"
+    wait_for '[ -S "$XDG_RUNTIME_DIR/glass/glassd.sock" ]' "glassd mở socket"
+    wait_for 'grep -qx "agent io.github.canxphung.glass" "$tmp/nm.log" 2>/dev/null' "glassd đăng ký agent với NetworkManager"
+    wait_for 'grep -qx "default agent" "$tmp/bluez.log" 2>/dev/null' "glassd đăng ký agent với BlueZ"
+fi
+
+if [ -n "$pipewire" ]; then
+    pipewire >"$tmp/pipewire.log" 2>&1 &
+    pids="$pids $!"
+    wait_for '[ -S "$XDG_RUNTIME_DIR/pipewire-0" ]' "PipeWire chạy"
+    wireplumber >"$tmp/wireplumber.log" 2>&1 &
+    pids="$pids $!"
+    pw-cli create-node adapter '{ factory.name=support.null-audio-sink node.name=loa-thu node.description="Loa thử" media.class=Audio/Sink object.linger=true audio.position=[FL FR] }' >/dev/null
+fi
 
 glass-shell >"$tmp/shell.log" 2>&1 &
 pids="$pids $!"
@@ -241,13 +303,87 @@ elif [ -n "${GLASS_SHELL_SMOKE_REQUIRED-}" ]; then
     fail "thiếu foot để thử cửa sổ trên taskbar"
 fi
 
-# 9. Log không có cảnh báo nào của QML. Bỏ qua các cảnh báo do môi trường
-#    test: không có PipeWire, không có system bus (UPower), sway không có
-#    giao thức riêng của Hyprland; và cảnh báo nội bộ của QtWayland khi
-#    sway chuyển focus bàn phím giữa các bề mặt.
+# 9. Control center: mở từ IPC, sang trang con, Esc lùi về rồi đóng.
+call controlcenter open main
+wait_for '[ "$(call controlcenter isOpen)" = true ]' "control center mở"
+shot 7-controlcenter
+call controlcenter open audio
+wait_for '[ "$(call controlcenter page)" = audio ]' "sang trang âm thanh"
+type_keys -k Escape
+wait_for '[ "$(call controlcenter page)" = main ]' "Esc về trang chính"
+type_keys -k Escape
+wait_for '[ "$(call controlcenter isOpen)" = false ]' "Esc đóng control center"
+
+# 10. Âm thanh qua PipeWire thật: shell thấy loa ảo, đổi âm lượng thật
+#     (wpctl đọc lại được), tắt tiếng, hiện OSD.
+if [ -n "$pipewire" ]; then
+    wait_for '[ "$(call audio sinks)" = "* Loa thử" ]' "shell thấy loa PipeWire"
+    # OSD bỏ qua các lần đổi ngay sau khi có loa mới.
+    sleep 2
+    call audio setVolume 35
+    wait_for 'wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep -qx "Volume: 0.35"' "đặt âm lượng PipeWire"
+    wait_for '[ "$(call osd isVisible)" = true ]' "OSD âm lượng"
+    [ "$(call osd level)" = 35 ] || fail "OSD hiện mức $(call osd level), không phải 35"
+    shot 8-volume
+    call audio toggleMute
+    wait_for 'wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep -q MUTED' "tắt tiếng"
+    call audio toggleMute
+fi
+
+# 11. Wi-Fi qua NetworkManager giả và agent của glassd: mở trang Wi-Fi (bật
+#     quét), nối mạng có mật khẩu, gõ sai thì được hỏi lại, gõ đúng thì
+#     nối được; Esc huỷ thì NetworkManager báo thiếu mật khẩu.
+if [ -n "$agents" ]; then
+    wait_for '[ "$(call prompts connected)" = true ]' "shell nối với glassd"
+    call controlcenter open wifi
+    wait_for 'call network list | grep -q "^Nhà Mình"' "thấy mạng khi quét"
+    call network connect "Nhà Mình"
+    wait_for 'call prompts current | grep -q "\"ssid\":\"Nhà Mình\""' "hộp thoại mật khẩu Wi-Fi"
+    shot 9-wifi-password
+    type_keys "sai-roi" -k Return
+    wait_for 'call prompts current | grep -q "\"retry\":true"' "hỏi lại khi sai mật khẩu"
+    type_keys "matkhau123" -k Return
+    wait_for '[ "$(call network status)" = "Nhà Mình" ]' "nối Wi-Fi"
+    grep -qx "secrets Nhà Mình flags=3" "$tmp/nm.log" || fail "lần hỏi lại thiếu cờ REQUEST_NEW"
+    shot 10-wifi-connected
+
+    call network connect "Hàng Xóm"
+    wait_for 'call prompts current | grep -q "Hàng Xóm"' "hộp thoại mật khẩu mạng thứ hai"
+    type_keys -k Escape
+    wait_for 'grep -qx "failed Hàng Xóm reason=7" "$tmp/nm.log"' "Esc huỷ kết nối"
+    wait_for '[ -z "$(call prompts current)" ]' "hộp thoại đóng"
+
+    # 12. Bluetooth qua BlueZ giả: tìm thiết bị, ghép nối có xác nhận mã
+    #     (Enter), rồi tin cậy và kết nối luôn; thiết bị cần gõ mã thì hộp
+    #     thoại hiện mã tự đóng khi ghép nối xong.
+    call controlcenter open bluetooth
+    wait_for 'call bluetooth list | grep -q "^Loa Phòng Khách"' "tìm thấy thiết bị Bluetooth"
+    call bluetooth pair "Loa Phòng Khách"
+    wait_for 'call prompts current | grep -q "\"code\":\"123456\""' "hộp thoại xác nhận mã"
+    shot 11-bluetooth-confirm
+    type_keys -k Return
+    wait_for 'grep -qx "connected Loa Phòng Khách" "$tmp/bluez.log"' "ghép nối rồi kết nối"
+    grep -qx "trusted Loa Phòng Khách yes" "$tmp/bluez.log" || fail "không tin cậy thiết bị sau khi ghép nối"
+    call bluetooth pair "Bàn phím Glass"
+    wait_for 'call prompts current | grep -q "\"code\":\"654321\""' "hộp thoại hiện mã"
+    wait_for 'grep -qx "paired Bàn phím Glass" "$tmp/bluez.log"' "ghép nối bàn phím"
+    wait_for '[ -z "$(call prompts current)" ]' "hộp thoại hiện mã tự đóng"
+    shot 12-bluetooth
+    # Như khay của Windows: đang ở trang con, bật/tắt lần nữa là đóng.
+    call controlcenter toggle
+    wait_for '[ "$(call controlcenter isOpen)" = false ]' "toggle đóng control center từ trang con"
+fi
+
+# 13. Log không có cảnh báo nào của QML. Bỏ qua các cảnh báo do môi trường
+#     test: không có UPower, power-profiles-daemon (hay PipeWire), sway
+#     không có giao thức riêng của Hyprland; và cảnh báo nội bộ của
+#     QtWayland khi sway chuyển focus bàn phím giữa các bề mặt.
+[ -n "$pipewire" ] || no_pipewire='quickshell.service.pipewire'
 problems=$(grep -E ' (WARN|ERROR|CRIT|FATAL)' "$tmp/shell.log" |
-    grep -v -e 'quickshell.service.pipewire' \
+    grep -v -e "${no_pipewire:-^$}" \
         -e 'quickshell.service.upower' \
+        -e 'quickshell.service.powerprofiles' \
+        -e 'Could not launch service org.freedesktop.UPower' \
         -e 'hyprland-toplevel-mapping' \
         -e 'qt.qpa.wayland.textinput' \
         -e 'Ignoring unexpected wl_keyboard.leave event' || true)
