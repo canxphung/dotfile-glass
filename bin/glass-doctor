@@ -164,6 +164,42 @@ else
     warn "sddm.service chưa bật (sudo systemctl enable sddm)"
 fi
 
+section "Mạng, Bluetooth, nguồn"
+if systemctl is-active --quiet NetworkManager.service 2>/dev/null; then
+    ok "NetworkManager đang chạy"
+else
+    warn "NetworkManager không chạy: Wi-Fi trong control center sẽ không dùng được"
+    note "bật bằng: sudo systemctl enable --now NetworkManager"
+fi
+if ls /sys/class/bluetooth/hci* >/dev/null 2>&1; then
+    if systemctl is-active --quiet bluetooth.service 2>/dev/null; then
+        ok "bluetooth đang chạy"
+    else
+        warn "máy có Bluetooth nhưng bluetooth.service không chạy"
+        note "bật bằng: sudo systemctl enable --now bluetooth"
+    fi
+fi
+if ls /sys/class/power_supply/BAT* >/dev/null 2>&1; then
+    if systemctl is-active --quiet power-profiles-daemon.service 2>/dev/null; then
+        ok "power-profiles-daemon (chế độ tiết kiệm pin)"
+    else
+        warn "power-profiles-daemon không chạy: control center sẽ không đổi được chế độ nguồn"
+        note "bật bằng: sudo systemctl enable --now power-profiles-daemon"
+    fi
+fi
+# Applet tự chạy khi vào phiên cũng đăng ký agent với NetworkManager/BlueZ,
+# nên mật khẩu Wi-Fi và mã ghép nối có thể bị hỏi hai lần.
+config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+for app in nm-applet blueman; do
+    [ -e "/etc/xdg/autostart/$app.desktop" ] || continue
+    if grep -qx 'Hidden=true' "$config_home/autostart/$app.desktop" 2>/dev/null; then
+        ok "$app đã tắt tự chạy"
+        continue
+    fi
+    warn "$app tự chạy khi vào phiên: sẽ hỏi mật khẩu Wi-Fi / mã ghép nối trùng với Glass"
+    note "tắt bằng: mkdir -p $config_home/autostart && printf '[Desktop Entry]\\nHidden=true\\n' > $config_home/autostart/$app.desktop"
+done
+
 section "Gói có thể xung đột"
 for pkg in cachyos-hypr-noctalia cachyos-hyprland-settings; do
     if installed "$pkg"; then

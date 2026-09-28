@@ -9,28 +9,30 @@ import qs.components
 PanelWindow {
     id: root
 
-    property string glyph
-    property real value
-    property bool muted
+    // "volume" hay "brightness". Mức hiện theo giá trị thật, không chép lúc
+    // nhận tín hiệu: volumesChanged của PipeWire tới trước khi volume đổi.
+    property string kind: "volume"
+    readonly property bool isVolume: kind === "volume"
+    readonly property string glyph: isVolume ? Audio.glyph() : Brightness.level >= 0.5 ? "\u{f00df}" : "\u{f00de}"
+    readonly property real value: isVolume ? Audio.volume : Brightness.level
+    readonly property bool muted: isVolume && Audio.muted
     property bool shown: false
     // Bỏ qua các lần đổi lúc mới khởi động hoặc vừa đổi loa.
     property bool armed: false
 
-    function show(glyph: string, value: real, muted: bool): void {
-        root.glyph = glyph;
-        root.value = value;
-        root.muted = muted;
+    function show(kind: string): void {
+        root.kind = kind;
         shown = true;
         hideTimer.restart();
     }
 
     function showVolume(): void {
         if (Audio.ready)
-            show(Audio.glyph(), Audio.volume, Audio.muted);
+            show("volume");
     }
 
     function showBrightness(): void {
-        show(Brightness.level >= 0.5 ? "\u{f00df}" : "\u{f00de}", Brightness.level, false);
+        show("brightness");
     }
 
     visible: shown
@@ -69,7 +71,8 @@ PanelWindow {
         }
 
         function onChanged() {
-            if (root.armed)
+            // Đang kéo thanh trượt trong control center thì không cần OSD.
+            if (root.armed && !Overlays.controlCenter)
                 root.showVolume();
         }
     }
@@ -78,7 +81,8 @@ PanelWindow {
         target: Brightness
 
         function onChanged() {
-            root.showBrightness();
+            if (!Overlays.controlCenter)
+                root.showBrightness();
         }
     }
 

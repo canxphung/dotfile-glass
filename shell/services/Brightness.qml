@@ -12,9 +12,12 @@ Singleton {
     property real level: 0
     property bool available: false
 
+    // Đổi do người dùng (phím sáng/tối, thanh trượt): OSD hiện theo.
     signal changed
 
-    function refresh(): void {
+    // Đọc lại mức sáng; `announce` để báo `changed` (hiện OSD).
+    function refresh(announce: bool): void {
+        query.announce = announce;
         query.running = true;
     }
 
@@ -28,6 +31,9 @@ Singleton {
     // brightnessctl -m: "intel_backlight,backlight,1200,50%,2400"
     Process {
         id: query
+
+        property bool announce: false
+
         command: ["brightnessctl", "--machine-readable", "--class=backlight", "info"]
         stdout: StdioCollector {
             onStreamFinished: {
@@ -35,7 +41,8 @@ Singleton {
                 if (fields.length >= 5 && Number(fields[4]) > 0) {
                     root.level = Number(fields[2]) / Number(fields[4]);
                     root.available = true;
-                    root.changed();
+                    if (query.announce)
+                        root.changed();
                 }
             }
         }

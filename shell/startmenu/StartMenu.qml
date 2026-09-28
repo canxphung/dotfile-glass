@@ -23,7 +23,7 @@ PanelWindow {
 
     WlrLayershell.namespace: "glass-startmenu"
     WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: visible && !Glassd.prompting ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     property string query: ""
     property bool showAll: false

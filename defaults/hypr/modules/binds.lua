@@ -62,6 +62,7 @@ bind(mod .. " + L",           hl.dsp.exec_cmd("loginctl lock-session"),      "Kh
 bind(mod .. " + SHIFT + E",   hl.dsp.exec_cmd("glass-shell powermenu toggle"), "Khoá, đăng xuất, tắt máy...")
 bind("CTRL + ALT + Delete",   hl.dsp.exec_cmd("glass-shell powermenu toggle"), "Khoá, đăng xuất, tắt máy...")
 bind(mod .. " + N",           hl.dsp.exec_cmd("glass-shell notifications toggleDnd"), "Bật/tắt không làm phiền")
+bind(mod .. " + A",           hl.dsp.exec_cmd("glass-shell controlcenter toggle"), "Mở control center (Wi-Fi, Bluetooth, âm thanh...)")
 
 ---- Chụp màn hình ----
 bind("Print",               hl.dsp.exec_cmd("glass-screenshot region"), "Chụp vùng")

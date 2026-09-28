@@ -68,11 +68,12 @@ hl.layer_rule({
     ignore_alpha = 0.2,
 })
 
--- Start menu và menu nguồn phủ cả màn hình (phần lớn trong suốt) và tự
--- làm hiệu ứng mở; OSD, thông báo trượt vào từ cạnh dưới/phải.
+-- Start menu, menu nguồn, control center và hộp thoại hỏi mật khẩu/mã
+-- ghép nối phủ cả màn hình (phần lớn trong suốt) và tự làm hiệu ứng mở;
+-- OSD, thông báo trượt vào từ cạnh dưới/phải.
 hl.layer_rule({
     name  = "glass-shell-overlays",
-    match = { namespace = "^glass-(startmenu|powermenu)$" },
+    match = { namespace = "^glass-(startmenu|powermenu|controlcenter|prompt)$" },
     no_anim = true,
 })
 hl.layer_rule({
