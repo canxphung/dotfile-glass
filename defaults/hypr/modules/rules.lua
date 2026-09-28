@@ -58,11 +58,30 @@ hl.window_rule({
     move              = { "monitor_w*0.73", "monitor_h*0.72" },
 })
 
--- Các bề mặt của shell Glass (giai đoạn 3) đặt namespace "glass-*":
--- blur phía sau, bỏ qua vùng gần như trong suốt.
+-- Các bề mặt của shell Glass đặt namespace "glass-*": blur phía sau (cả
+-- popup như menu chuột phải, lịch), bỏ qua vùng gần như trong suốt.
 hl.layer_rule({
     name  = "glass-shell-blur",
     match = { namespace = "^glass-" },
     blur         = true,
+    blur_popups  = true,
     ignore_alpha = 0.2,
+})
+
+-- Start menu và menu nguồn phủ cả màn hình (phần lớn trong suốt) và tự
+-- làm hiệu ứng mở; OSD, thông báo trượt vào từ cạnh dưới/phải.
+hl.layer_rule({
+    name  = "glass-shell-overlays",
+    match = { namespace = "^glass-(startmenu|powermenu)$" },
+    no_anim = true,
+})
+hl.layer_rule({
+    name  = "glass-shell-osd",
+    match = { namespace = "^glass-osd$" },
+    animation = "slide bottom",
+})
+hl.layer_rule({
+    name  = "glass-shell-notifications",
+    match = { namespace = "^glass-notifications$" },
+    animation = "slide right",
 })

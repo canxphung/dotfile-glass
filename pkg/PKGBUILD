@@ -6,8 +6,8 @@
 # Bản phát hành sau này sẽ lấy source từ git tag.
 
 pkgbase=glass-desktop
-pkgname=(glass-desktop glass-session glassd glass-sddm)
-pkgver=0.2.0
+pkgname=(glass-desktop glass-session glassd glass-shell glass-sddm)
+pkgver=0.3.0
 pkgrel=1
 pkgdesc='Glass: desktop Aero trên Hyprland, tối ưu cho CachyOS'
 arch=(x86_64)
@@ -23,7 +23,7 @@ _root() {
 
 pkgver() {
     cd "$(_root)"
-    printf '0.2.0.r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+    printf '0.3.0.r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
 }
 
 prepare() {
@@ -51,7 +51,7 @@ _license() {
 package_glass-desktop() {
     pkgdesc='Glass: desktop Aero trên Hyprland (gói tổng)'
     arch=(any)
-    depends=(glass-session glassd glass-sddm)
+    depends=(glass-session glassd glass-shell glass-sddm)
     _license
 }
 
@@ -67,12 +67,11 @@ package_glass-session() {
         fcitx5 fcitx5-bamboo fcitx5-gtk fcitx5-qt fcitx5-configtool
         # app và tiện ích dùng trong phím tắt
         kitty qt6ct wireplumber brightnessctl playerctl
-        grim slurp wl-clipboard xdg-user-dirs dbus
+        grim slurp wl-clipboard xdg-user-dirs dbus libnotify
         # font
         ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
     )
     optdepends=(
-        'hyprlauncher: launcher tạm cho SUPER + R trước khi có start menu'
         'noto-fonts-cjk: hiển thị chữ Trung, Nhật, Hàn'
     )
     backup=(etc/xdg/xdg-desktop-portal/hyprland-portals.conf)
@@ -90,6 +89,26 @@ package_glassd() {
     )
 
     make -C "$(_root)" DESTDIR="$pkgdir" PREFIX=/usr install-daemon
+    _license
+}
+
+package_glass-shell() {
+    pkgdesc='Glass: shell Quickshell (taskbar, start menu, thông báo, OSD)'
+    arch=(any)
+    depends=(
+        glass-session 'quickshell>=0.3.0'
+        # icon trên taskbar, menu
+        ttf-nerd-fonts-symbols
+        # lệnh shell gọi: mở thư mục, chạy app trong scope riêng
+        xdg-utils systemd
+    )
+    optdepends=(
+        'glassd: đổi màu theo palette, font theo settings'
+        'upower: hiện pin trên taskbar (laptop)'
+        'papirus-icon-theme: icon app và khay, khi chưa chọn icon theme trong qt6ct'
+    )
+
+    make -C "$(_root)" DESTDIR="$pkgdir" PREFIX=/usr install-shell
     _license
 }
 

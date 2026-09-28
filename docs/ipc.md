@@ -1,4 +1,7 @@
-# glassd: API
+# API và IPC
+
+- [glassd](#d-bus): settings của Glass, qua D-Bus, socket và `glassctl`.
+- [Shell](#shell): điều khiển taskbar, start menu, thông báo... qua `glass-shell`.
 
 glassd có hai cửa vào, cùng một mô hình settings:
 
@@ -62,7 +65,7 @@ busctl --user call io.github.canxphung.Glass1 /io/github/canxphung/Glass1 \
 Khi kết nối, glassd gửi ngay:
 
 ```json
-{"event":"hello","version":"0.2.0","settings":{"appearance.palette":"sky", "...": "..."},"palettes":["sky","twilight"]}
+{"event":"hello","version":"0.3.0","settings":{"appearance.palette":"sky", "...": "..."},"palettes":["sky","twilight"]}
 ```
 
 Yêu cầu có `method`, tuỳ chọn `id` (trả lại nguyên trong phản hồi), `key`, `value`:
@@ -97,7 +100,7 @@ Sự kiện được đẩy tới mọi kết nối, không cần đăng ký:
 
 Shell nên cập nhật giao diện theo sự kiện `changed` chứ không theo phản hồi của `set`, vì settings còn đổi được từ `glassctl` hay từ việc sửa tay file.
 
-Màu và font để vẽ giao diện nằm trong `~/.local/state/glass/theme/shell.json` (palette đầy đủ, `color_scheme`, `font_family`, `monospace_family`); glassd ghi lại file này khi đổi palette hay font.
+Màu và font để vẽ giao diện nằm trong `~/.local/state/glass/theme/shell.json` (palette đầy đủ, `color_scheme`, `font_family`, `font_size` tính bằng pt, `monospace_family`); glassd ghi lại file này khi đổi palette hay font, và shell của Glass theo dõi file này để đổi màu ngay.
 
 ## glassctl
 
@@ -112,3 +115,31 @@ glassctl wallpaper ~/Pictures/a.jpg    # "default" để về hình mặc địn
 glassctl reload
 glassctl watch                         # in thay đổi khi chúng xảy ra
 ```
+
+## Shell
+
+Shell (Quickshell) nhận lệnh qua IPC của Quickshell. `glass-shell TARGET HÀM [THAM SỐ]` gọi vào shell đang chạy; `glass-shell ipc show` liệt kê đủ. Hàm trả về giá trị thì in ra để script dùng.
+
+| Target | Hàm | Việc |
+| --- | --- | --- |
+| `startmenu` | `toggle`, `open`, `close` | Mở/đóng start menu (trên màn hình đang focus) |
+| | `isOpen` | `true`/`false` |
+| | `entries` | Tên các app đang hiện trong danh sách, mỗi dòng một app |
+| `powermenu` | `toggle`, `open`, `close`, `isOpen` | Menu khoá / đăng xuất / ngủ / khởi động lại / tắt máy |
+| `osd` | `brightness` | Đọc lại độ sáng và hiện OSD (gọi sau `brightnessctl`) |
+| | `volume` | Hiện OSD âm lượng (âm lượng đổi thì OSD tự hiện, không cần gọi) |
+| | `isVisible` | OSD đang hiện không |
+| `notifications` | `toggleDnd`, `dnd` | Bật/tắt, xem chế độ không làm phiền |
+| | `dismissAll` | Đóng mọi thông báo |
+| | `popups`, `history` | Số popup đang hiện, số thông báo đang giữ |
+| `shell` | `tasks` | Các nút trên taskbar, mỗi dòng "id số_cửa_sổ" |
+| | `palette`, `tint` | Palette và màu kính shell đang dùng |
+
+```sh
+glass-shell startmenu toggle
+glass-shell notifications toggleDnd
+brightnessctl set 50% && glass-shell osd brightness
+glass-shell log -f          # log của shell đang chạy
+```
+
+Trạng thái riêng của shell nằm trong `~/.local/state/glass/shell/apps.json`: `pinned` là danh sách app ghim trên taskbar (id của desktop entry, hoặc tên class của cửa sổ như `foot`), `launches` là số lần mở từng app để xếp mục "hay dùng" trong start menu. Sửa tay được; shell tự đọc lại.

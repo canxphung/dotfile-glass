@@ -6,8 +6,11 @@
 #   glass-session lock         khoá máy (qua logind, để hypridle xử lý)
 #   glass-session lock-screen  chạy hyprlock với config của Glass (hypridle gọi)
 #   glass-session logout       đăng xuất
+#   glass-session suspend      ngủ
 #   glass-session reboot       khởi động lại
 #   glass-session poweroff     tắt máy
+#   glass-session run ID LỆNH [THAM SỐ...]
+#                              chạy app trong scope systemd riêng (shell dùng)
 #
 # Biến môi trường:
 #   GLASS_SHUTDOWN_VT=N  chuyển về VT N sau khi thoát (máy NVIDIA + SDDM bị
@@ -19,6 +22,14 @@ set -eu
 
 config_home=${XDG_CONFIG_HOME:-$HOME/.config}
 glass_config=$config_home/glass
+
+# Biến môi trường chép vào systemd --user lúc vào phiên. Dịch vụ của phiên
+# và app mở từ start menu (qua systemd-run) chỉ thấy những biến này, nên
+# phải gồm mọi biến hl.env trong defaults/hypr/modules/env.lua
+# (tests/lua-smoke.sh kiểm tra).
+session_env="WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP GLASS_SESSION
+XCURSOR_SIZE HYPRCURSOR_SIZE QT_QPA_PLATFORMTHEME QT_QPA_PLATFORM QT_WAYLAND_DISABLE_WINDOWDECORATION
+GDK_BACKEND ELECTRON_OZONE_PLATFORM_HINT QT_IM_MODULES QT_IM_MODULE XMODIFIERS SDL_IM_MODULE"
 
 die() {
     printf 'glass-session: %s\n' "$*" >&2
@@ -70,9 +81,7 @@ services)
     # Hyprland tự import các biến này vào systemd, nhưng chạy song song
     # với lệnh này. Import lại để chắc chắn dịch vụ thấy chúng.
     vars=
-    for v in WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP \
-        GLASS_SESSION QT_QPA_PLATFORMTHEME XCURSOR_SIZE HYPRCURSOR_SIZE \
-        QT_IM_MODULES QT_IM_MODULE XMODIFIERS SDL_IM_MODULE; do
+    for v in $session_env; do
         eval "is_set=\${$v+x}"
         if [ -n "$is_set" ]; then
             vars="$vars $v"
@@ -96,6 +105,26 @@ lock-screen)
 
 logout)
     shutdown_session "Đang đăng xuất..."
+    ;;
+
+suspend)
+    # Khoá máy trước khi ngủ do hypridle lo (before_sleep_cmd).
+    exec systemctl suspend
+    ;;
+
+run)
+    [ $# -ge 3 ] || die "cách dùng: glass-session run ID LỆNH [THAM SỐ...]"
+    id=$2
+    shift 2
+    cd "$HOME"
+    if command -v systemd-run >/dev/null 2>&1; then
+        # Tên theo quy ước của systemd cho app đồ hoạ:
+        # app-<trình mở>-<id app>-<ngẫu nhiên>.scope
+        rand=$(od -An -N4 -tx4 /dev/urandom | tr -d ' ')
+        unit="app-glass-$(systemd-escape -- "$id")-$rand"
+        exec systemd-run --user --scope --quiet --collect --slice=app.slice --unit="$unit" -- "$@"
+    fi
+    exec "$@"
     ;;
 
 reboot)

@@ -1,0 +1,58 @@
+#!/bin/sh
+# glass-shell: taskbar, start menu, thông báo, OSD và menu nguồn của Glass
+# (viết bằng Quickshell).
+#
+#   glass-shell                      chạy shell (glass-shell.service gọi)
+#   glass-shell TARGET HÀM [THAM SỐ...]
+#                                    gọi một hàm của shell đang chạy, vd.
+#                                      glass-shell startmenu toggle
+#                                      glass-shell powermenu open
+#                                      glass-shell osd brightness
+#                                      glass-shell notifications toggleDnd
+#   glass-shell ipc show             liệt kê các hàm gọi được
+#   glass-shell log                  xem log của shell đang chạy
+#
+# Biến môi trường:
+#   GLASS_SHELL_DIR    thư mục shell (mặc định @GLASS_DATADIR@/shell)
+#   GLASS_SHELL_WATCH  =1 để shell tự nạp lại khi file QML đổi (khi sửa shell)
+
+set -eu
+
+shell_dir=${GLASS_SHELL_DIR:-@GLASS_DATADIR@/shell}
+
+command -v qs >/dev/null 2>&1 || {
+    printf 'glass-shell: chưa cài quickshell\n' >&2
+    exit 1
+}
+
+case ${1-} in
+"" | run)
+    # Icon theme theo qt6ct nếu bạn đã chọn; chưa chọn thì Qt dùng hicolor
+    # (thiếu gần hết icon), nên lấy một theme phổ biến đang có.
+    if [ -z "${QS_ICON_THEME-}" ] &&
+        ! grep -qs '^icon_theme=.' "${XDG_CONFIG_HOME:-$HOME/.config}/qt6ct/qt6ct.conf"; then
+        for theme in Papirus-Dark Papirus breeze-dark breeze Adwaita; do
+            if [ -d "/usr/share/icons/$theme" ]; then
+                export QS_ICON_THEME="$theme"
+                break
+            fi
+        done
+    fi
+    # --no-duplicate: đang chạy rồi thì thoát, không mở taskbar thứ hai.
+    exec qs --no-duplicate --path "$shell_dir"
+    ;;
+ipc)
+    shift
+    exec qs ipc --path "$shell_dir" "$@"
+    ;;
+log)
+    shift
+    exec qs log --path "$shell_dir" "$@"
+    ;;
+-h | --help | help)
+    sed -n '2,/^$/s/^# \{0,1\}//p' "$0"
+    ;;
+*)
+    exec qs ipc --path "$shell_dir" call "$@"
+    ;;
+esac

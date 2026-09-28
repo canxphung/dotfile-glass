@@ -13,6 +13,10 @@ trap 'rm -rf "$tmp"' EXIT
 make -s install-session PREFIX="$tmp/prefix" SYSCONFDIR="$tmp/etc" >/dev/null
 entry=$tmp/prefix/share/glass/skel/glass/hyprland.lua
 
+# Danh sách biến glass-session chép vào systemd (xem session_env trong đó).
+GLASS_SESSION_ENV=$(sed -n '/^session_env="/,/"$/p' bin/glass-session | tr -d '"' | sed 's/^session_env=//')
+export GLASS_SESSION_ENV
+
 HOME=$tmp/home XDG_STATE_HOME=$tmp/home/.local/state "$lua" tests/lua-smoke.lua "$entry"
 
 mkdir -p "$tmp/home/.local/state"

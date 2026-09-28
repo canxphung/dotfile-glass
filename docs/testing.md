@@ -1,8 +1,8 @@
 # Test trên máy thật
 
-Container phát triển không chạy được Hyprland hay SDDM. `make check` kiểm được cú pháp, bố cục cài đặt, chạy thử config Lua với một `hl` giả, và chạy glassd thật trên một session bus riêng (lệnh gsettings, hyprctl, systemctl được thay bằng stub). Hiển thị và phiên thật phải thử trên máy CachyOS.
+Container phát triển không chạy được Hyprland hay SDDM. `make check` kiểm được cú pháp, bố cục cài đặt, chạy thử config Lua với một `hl` giả, và chạy glassd thật trên một session bus riêng (lệnh gsettings, hyprctl, systemctl được thay bằng stub). `make test-shell` chạy shell QML thật trên sway headless: gõ phím thật vào start menu, gửi thông báo thật, mở menu nguồn, đổi palette (CI chạy bước này trong container Arch và lưu ảnh chụp màn hình). Blur, phím SUPER, workspace thật, âm thanh, pin và phiên thật vẫn phải thử trên máy CachyOS.
 
-Mục 0–9 là giai đoạn 1, mục 10 là giai đoạn 2 (glassd).
+Mục 0–9 là giai đoạn 1, mục 10 là giai đoạn 2 (glassd), mục 11 là giai đoạn 3 (shell).
 
 Gặp lỗi ở bước nào thì gửi lại: số bước, việc đã làm, và kết quả của các lệnh trong mục [Thu log](#thu-log).
 
@@ -18,7 +18,7 @@ makepkg -si
 glass-doctor
 ```
 
-- [ ] `makepkg` cài đủ 4 gói: `glass-desktop`, `glass-session`, `glassd`, `glass-sddm`
+- [ ] `makepkg` cài đủ 5 gói: `glass-desktop`, `glass-session`, `glassd`, `glass-shell`, `glass-sddm`
 - [ ] `glassd --version` in `(dữ liệu: /usr/share/glass)`
 - [ ] `glass-doctor` không có lỗi (✗). Cảnh báo (!) về config chưa tạo là bình thường trước lần đăng nhập đầu.
 
@@ -48,7 +48,7 @@ Chọn **Glass**, đăng nhập.
 - [ ] Các dịch vụ đang chạy:
 
 ```sh
-systemctl --user status glass-session.target glass-idle glass-wallpaper hyprpolkitagent
+systemctl --user status glass-session.target glassd glass-shell glass-idle glass-wallpaper hyprpolkitagent
 ```
 
 ## 4. Giao diện kính
@@ -66,9 +66,8 @@ systemctl --user status glass-session.target glass-idle glass-wallpaper hyprpolk
 - [ ] `SUPER + Q` và `ALT + F4` đóng cửa sổ
 - [ ] `SUPER + 1..3` đổi workspace, `SUPER + SHIFT + 2` dời cửa sổ
 - [ ] `ALT + Tab` chuyển cửa sổ
-- [ ] `Print` chụp vùng: có thông báo góc trên, ảnh nằm trong `~/Pictures/Screenshots`, dán được vào app khác
-- [ ] Phím âm lượng và độ sáng hoạt động
-- [ ] `SUPER + R` mở hyprlauncher (nếu đã cài)
+- [ ] `Print` chụp vùng: có thông báo góc dưới phải kèm ảnh vừa chụp, ảnh nằm trong `~/Pictures/Screenshots`, dán được vào app khác
+- [ ] Phím âm lượng và độ sáng hoạt động, có OSD phía trên taskbar
 
 ## 6. Khoá máy và khi rảnh
 
@@ -115,7 +114,7 @@ Thử ở từng loại app, vì mỗi loại đi một đường khác nhau:
 
 ## 9. Đăng xuất
 
-- [ ] `SUPER + SHIFT + E`: hiện hộp "Đang đăng xuất...", app tự đóng, quay về SDDM
+- [ ] `SUPER + SHIFT + E` mở menu nguồn, chọn **Đăng xuất**: hiện hộp "Đang đăng xuất...", app tự đóng, quay về SDDM
 - [ ] Đăng nhập lại vào Glass lần hai vẫn bình thường
 - [ ] Phiên "Hyprland" thường (nếu có) vẫn dùng config cũ trong `~/.config/hypr`, không bị Glass ảnh hưởng
 
@@ -168,6 +167,51 @@ Các thứ khác:
 - [ ] `glassctl watch` ở một terminal, đổi palette ở terminal khác: dòng `appearance.palette = ...` hiện ra
 - [ ] Khởi động lại máy: palette, hình nền, thời gian khoá vẫn giữ như đã đặt
 
+## 11. Shell
+
+Taskbar:
+
+- [ ] Taskbar kính ở đáy mọi màn hình, blur hình nền phía sau; cửa sổ không bị taskbar che
+- [ ] Nút Start (quả cầu) sáng lên khi rê chuột
+- [ ] Có sẵn nút cho các app ghim đã cài (kitty, trình quản lý file, trình duyệt)
+- [ ] Mở 2 cửa sổ kitty: một nút kitty có khung chồng phía sau; bấm vào hiện danh sách 2 cửa sổ, chọn được từng cái
+- [ ] Chuột phải nút app: danh sách cửa sổ, "Mở cửa sổ mới", "Ghim/Bỏ ghim", "Đóng"; bấm ra ngoài thì menu đóng
+- [ ] Bỏ ghim rồi ghim lại một app; đăng xuất/đăng nhập lại vẫn giữ
+- [ ] Workspace: số đang dùng sáng hơn; bấm để chuyển; `SUPER + 3` thì ô số 3 sáng theo
+- [ ] Khay: icon fcitx5 (và app khác nếu có: Discord, Steam...), chuột phải hiện menu của app
+- [ ] Âm lượng: lăn chuột trên icon loa đổi âm lượng, có OSD; bấm để tắt tiếng
+- [ ] Laptop: icon pin và phần trăm, đổi icon khi cắm sạc
+- [ ] Đồng hồ hai dòng; bấm hiện lịch tháng, có đánh dấu hôm nay, chuyển tháng được
+
+Start menu:
+
+- [ ] Nhấn rồi thả `SUPER`: start menu hiện ở góc dưới trái, kính mờ; nhấn lại thì đóng
+- [ ] `SUPER + Q` (đóng cửa sổ) không làm start menu bật lên
+- [ ] Gõ ngay "fire" (không cần bấm vào ô tìm): ra Firefox; `↓`, `Enter` mở app đang chọn
+- [ ] Gõ không dấu "cai dat" ra các app có tên "Cài đặt" (nếu có)
+- [ ] "Tất cả ứng dụng" hiện đủ app theo thứ tự tên; "Quay lại" về danh sách hay dùng
+- [ ] Mở app vài lần: app đó lên đầu mục hay dùng
+- [ ] Bấm "Tài liệu", "Ảnh"... mở đúng thư mục; "Cài đặt" mở `settings.toml`
+- [ ] App mở từ start menu gõ được tiếng Việt (kiểm tra biến môi trường được chép vào systemd)
+- [ ] `systemctl --user restart glass-shell`: taskbar biến mất rồi hiện lại, app đã mở từ start menu vẫn còn nguyên
+- [ ] `systemd-cgls --user-unit app.slice` thấy mỗi app một scope `app-glass-...`
+
+Thông báo, OSD, menu nguồn:
+
+- [ ] `notify-send "Xin chào" "Thử thông báo"`: popup kính góc dưới phải, tự ẩn sau vài giây, rê chuột lên thì không ẩn
+- [ ] `notify-send -u critical "Khẩn" "..."`: viền đỏ, không tự ẩn; bấm × để đóng
+- [ ] Thông báo của app thật (vd. tải xong file trong trình duyệt), bấm vào thì mở app
+- [ ] `SUPER + N` bật không làm phiền (icon chuông gạch chéo): thông báo thường không hiện popup; bật lại
+- [ ] `glass-doctor` báo "thông báo do shell của Glass hiện"
+- [ ] Phím độ sáng: OSD độ sáng
+- [ ] `CTRL + ALT + Delete`: màn hình mờ tối, danh sách khoá / đăng xuất / ngủ / khởi động lại / tắt máy; `↑`/`↓`, `Enter` chọn được, `Esc` thoát
+- [ ] Chọn "Ngủ": máy ngủ, thức dậy thấy màn hình khoá
+
+Đổi theme:
+
+- [ ] `glassctl palette twilight`: taskbar, start menu, thông báo chuyển sang tím ngay
+- [ ] `glassctl set appearance.font "Noto Sans 12"`: chữ trên taskbar và start menu to lên
+
 ## Thu log
 
 ```sh
@@ -177,5 +221,6 @@ hyprctl rollinglog | tail -n 100
 journalctl --user -b -u glass-session.target -u glass-idle -u glass-wallpaper -u hyprpolkitagent
 journalctl --user -b -u 'app-org.fcitx.Fcitx5@autostart.service'
 journalctl --user -b -u glassd -u glass-nightlight
+journalctl --user -b -u glass-shell
 journalctl -b -u sddm | tail -n 100
 ```

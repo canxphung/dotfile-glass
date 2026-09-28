@@ -35,5 +35,11 @@ esac
 
 wl-copy --type image/png <"$file"
 
-# Giai đoạn 1 chưa có server thông báo; dùng thông báo có sẵn của Hyprland.
-hyprctl notify 1 4000 "rgb(8fd3ff)" "Đã chụp: $file" >/dev/null 2>&1 || true
+# Báo qua thông báo của shell, kèm ảnh vừa chụp. Không có notify-send thì
+# dùng thông báo có sẵn của Hyprland.
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send --app-name "Chụp màn hình" --icon "$file" \
+        "Đã chụp màn hình" "Đã chép vào clipboard và lưu ở ${file#"$HOME"/}" || true
+else
+    hyprctl notify 1 4000 "rgb(8fd3ff)" "Đã chụp: $file" >/dev/null 2>&1 || true
+fi

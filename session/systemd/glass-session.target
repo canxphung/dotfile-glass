@@ -5,6 +5,6 @@ Documentation=https://github.com/canxphung/dotfile-glass
 # thoát; target này sống và chết theo nó.
 BindsTo=graphical-session.target
 After=graphical-session.target
-Wants=glassd.service glass-idle.service glass-wallpaper.service hyprpolkitagent.service
+Wants=glassd.service glass-shell.service glass-idle.service glass-wallpaper.service hyprpolkitagent.service
 # Chạy các app có file autostart (~/.config/autostart, /etc/xdg/autostart).
 Wants=xdg-desktop-autostart.target
